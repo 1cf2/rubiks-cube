@@ -1,0 +1,282 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blue-green-config
+  namespace: default
+data:
+  deployment-strategy: "blue-green"
+  health-check-path: "/health"
+  traffic-switch-delay: "30s"
+  rollback-on-failure: "true"
+
+---
+# Blue deployment (current)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rubiks-frontend-blue
+  labels:
+    app: rubiks-frontend
+    version: blue
+    component: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rubiks-frontend
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: rubiks-frontend
+        version: blue
+        component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/REPO_NAME/rubiks-cube-frontend:stable
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Green deployment (new version)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rubiks-frontend-green
+  labels:
+    app: rubiks-frontend
+    version: green
+    component: frontend
+spec:
+  replicas: 0  # Initially scaled to 0
+  selector:
+    matchLabels:
+      app: rubiks-frontend
+      version: green
+  template:
+    metadata:
+      labels:
+        app: rubiks-frontend
+        version: green
+        component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/REPO_NAME/rubiks-cube-frontend:latest
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Blue-Green service selector
+apiVersion: v1
+kind: Service
+metadata:
+  name: rubiks-frontend-active
+  labels:
+    app: rubiks-frontend
+    role: active
+spec:
+  selector:
+    app: rubiks-frontend
+    version: blue  # Initially points to blue
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+
+---
+# Service for testing green deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: rubiks-frontend-preview
+  labels:
+    app: rubiks-frontend
+    role: preview
+spec:
+  selector:
+    app: rubiks-frontend
+    version: green
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+
+---
+# Backend blue deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rubiks-backend-blue
+  labels:
+    app: rubiks-backend
+    version: blue
+    component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rubiks-backend
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: rubiks-backend
+        version: blue
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/REPO_NAME/rubiks-cube-backend:stable
+        ports:
+        - containerPort: 3001
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: rubiks-secrets
+              key: database-url
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+---
+# Backend green deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rubiks-backend-green
+  labels:
+    app: rubiks-backend
+    version: green
+    component: backend
+spec:
+  replicas: 0  # Initially scaled to 0
+  selector:
+    matchLabels:
+      app: rubiks-backend
+      version: green
+  template:
+    metadata:
+      labels:
+        app: rubiks-backend
+        version: green
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/REPO_NAME/rubiks-cube-backend:latest
+        ports:
+        - containerPort: 3001
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: rubiks-secrets
+              key: database-url
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+
+---
+# Backend active service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rubiks-backend-active
+  labels:
+    app: rubiks-backend
+    role: active
+spec:
+  selector:
+    app: rubiks-backend
+    version: blue  # Initially points to blue
+  ports:
+  - protocol: TCP
+    port: 3001
+    targetPort: 3001
+  type: ClusterIP
+
+---
+# Backend preview service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rubiks-backend-preview
+  labels:
+    app: rubiks-backend
+    role: preview
+spec:
+  selector:
+    app: rubiks-backend
+    version: green
+  ports:
+  - protocol: TCP
+    port: 3001
+    targetPort: 3001
+  type: ClusterIP

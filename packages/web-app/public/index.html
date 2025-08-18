@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rubik's Cube 3D</title>
+    <meta name="description" content="Interactive 3D Rubik's Cube application with advanced solving algorithms">
+    <meta name="keywords" content="rubiks cube, 3d, puzzle, three.js, react">
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Favicon and app icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="manifest" href="/site.webmanifest">
+    
+    <!-- PWA support -->
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RubiksCube3D">
+    
+    <!-- Performance optimizations -->
+    <meta name="robots" content="index, follow">
+    
+    <style>
+        /* Critical CSS for loading state */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #root {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 1.2rem;
+        }
+        
+        .loading::after {
+            content: "Loading 3D Cube...";
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: "Loading 3D Cube."; }
+            40% { content: "Loading 3D Cube.."; }
+            60% { content: "Loading 3D Cube..."; }
+            90%, 100% { content: "Loading 3D Cube"; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading" id="loading-screen"></div>
+    </div>
+    
+    <noscript>
+        <div style="padding: 2rem; text-align: center;">
+            <h1>JavaScript Required</h1>
+            <p>This 3D Rubik's Cube application requires JavaScript to be enabled in your browser.</p>
+        </div>
+    </noscript>
+</body>
+</html>

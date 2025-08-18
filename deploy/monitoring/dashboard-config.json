@@ -1,0 +1,259 @@
+{
+  "dashboards": {
+    "technical_kpis": {
+      "title": "Rubik's Cube - Technical Performance",
+      "widgets": [
+        {
+          "type": "line_chart",
+          "title": "Frame Rate (FPS)",
+          "query": "SELECT timestamp, avg(frame_rate) FROM performance_metrics WHERE timestamp > now() - 1h GROUP BY time(1m)",
+          "threshold": {
+            "warning": 50,
+            "critical": 45
+          },
+          "unit": "fps"
+        },
+        {
+          "type": "line_chart", 
+          "title": "Memory Usage (MB)",
+          "query": "SELECT timestamp, avg(memory_usage) FROM performance_metrics WHERE timestamp > now() - 1h GROUP BY time(1m)",
+          "threshold": {
+            "warning": 80,
+            "critical": 90
+          },
+          "unit": "MB"
+        },
+        {
+          "type": "gauge",
+          "title": "P95 Load Time",
+          "query": "SELECT percentile(load_time, 95) FROM performance_metrics WHERE timestamp > now() - 1h",
+          "threshold": {
+            "warning": 1500,
+            "critical": 2000
+          },
+          "unit": "ms"
+        },
+        {
+          "type": "counter",
+          "title": "Error Rate",
+          "query": "SELECT count(*) FROM error_logs WHERE timestamp > now() - 1h AND level = 'error'",
+          "threshold": {
+            "warning": 10,
+            "critical": 25
+          },
+          "unit": "errors/hour"
+        },
+        {
+          "type": "histogram",
+          "title": "Cube Operation Response Time",
+          "query": "SELECT cube_operation_time FROM performance_metrics WHERE timestamp > now() - 1h",
+          "threshold": {
+            "warning": 16,
+            "critical": 33
+          },
+          "unit": "ms"
+        }
+      ]
+    },
+    "user_kpis": {
+      "title": "Rubik's Cube - User Experience",
+      "widgets": [
+        {
+          "type": "line_chart",
+          "title": "Session Duration",
+          "query": "SELECT timestamp, avg(session_duration) FROM user_sessions WHERE timestamp > now() - 24h GROUP BY time(1h)",
+          "unit": "minutes"
+        },
+        {
+          "type": "bar_chart",
+          "title": "Solve Completion Rate",
+          "query": "SELECT date, (completed_solves::float / started_solves::float) * 100 as completion_rate FROM daily_stats WHERE date > now() - 7d",
+          "unit": "%"
+        },
+        {
+          "type": "counter",
+          "title": "Tutorial Completion Rate",
+          "query": "SELECT (completed_tutorials::float / started_tutorials::float) * 100 FROM tutorial_stats WHERE date = current_date",
+          "unit": "%"
+        },
+        {
+          "type": "line_chart",
+          "title": "User Engagement Score",
+          "query": "SELECT timestamp, avg(engagement_score) FROM user_metrics WHERE timestamp > now() - 24h GROUP BY time(1h)",
+          "unit": "score"
+        }
+      ]
+    },
+    "business_kpis": {
+      "title": "Rubik's Cube - Business Metrics",
+      "widgets": [
+        {
+          "type": "counter",
+          "title": "Monthly Active Users",
+          "query": "SELECT count(distinct user_id) FROM user_sessions WHERE timestamp > now() - 30d",
+          "unit": "users"
+        },
+        {
+          "type": "line_chart",
+          "title": "Daily Active Users",
+          "query": "SELECT date, count(distinct user_id) FROM daily_active_users WHERE date > now() - 30d GROUP BY date",
+          "unit": "users"
+        },
+        {
+          "type": "bar_chart",
+          "title": "Average Solves per Session",
+          "query": "SELECT date, avg(solves_per_session) FROM daily_stats WHERE date > now() - 7d",
+          "unit": "solves"
+        },
+        {
+          "type": "pie_chart",
+          "title": "Device Distribution",
+          "query": "SELECT device_type, count(*) FROM user_sessions WHERE timestamp > now() - 7d GROUP BY device_type",
+          "unit": "sessions"
+        },
+        {
+          "type": "line_chart",
+          "title": "User Retention Rate",
+          "query": "SELECT cohort_week, retention_rate FROM user_retention WHERE cohort_week > now() - 12w",
+          "unit": "%"
+        }
+      ]
+    },
+    "infrastructure": {
+      "title": "Rubik's Cube - Infrastructure",
+      "widgets": [
+        {
+          "type": "line_chart",
+          "title": "Frontend Response Time",
+          "query": "SELECT timestamp, avg(response_time) FROM nginx_metrics WHERE service = 'frontend' AND timestamp > now() - 1h GROUP BY time(1m)",
+          "threshold": {
+            "warning": 500,
+            "critical": 1000
+          },
+          "unit": "ms"
+        },
+        {
+          "type": "line_chart",
+          "title": "Backend Response Time", 
+          "query": "SELECT timestamp, avg(response_time) FROM api_metrics WHERE timestamp > now() - 1h GROUP BY time(1m)",
+          "threshold": {
+            "warning": 200,
+            "critical": 500
+          },
+          "unit": "ms"
+        },
+        {
+          "type": "gauge",
+          "title": "Database Connection Pool",
+          "query": "SELECT avg(active_connections) / max_connections * 100 FROM database_metrics WHERE timestamp > now() - 5m",
+          "threshold": {
+            "warning": 70,
+            "critical": 85
+          },
+          "unit": "%"
+        },
+        {
+          "type": "line_chart",
+          "title": "Redis Memory Usage",
+          "query": "SELECT timestamp, used_memory_mb FROM redis_metrics WHERE timestamp > now() - 1h GROUP BY time(1m)",
+          "threshold": {
+            "warning": 200,
+            "critical": 250
+          },
+          "unit": "MB"
+        },
+        {
+          "type": "bar_chart",
+          "title": "Container Resource Usage",
+          "query": "SELECT container_name, avg(cpu_percent), avg(memory_percent) FROM container_metrics WHERE timestamp > now() - 5m GROUP BY container_name",
+          "unit": "%"
+        }
+      ]
+    }
+  },
+  "alerts": {
+    "performance_alerts": [
+      {
+        "name": "Low Frame Rate",
+        "condition": "avg(frame_rate) < 45",
+        "duration": "2m",
+        "severity": "critical",
+        "channels": ["slack", "email"]
+      },
+      {
+        "name": "High Memory Usage",
+        "condition": "avg(memory_usage) > 90",
+        "duration": "5m", 
+        "severity": "warning",
+        "channels": ["slack"]
+      },
+      {
+        "name": "High Error Rate",
+        "condition": "rate(error_count[5m]) > 10",
+        "duration": "1m",
+        "severity": "critical",
+        "channels": ["slack", "email", "pagerduty"]
+      }
+    ],
+    "infrastructure_alerts": [
+      {
+        "name": "High Response Time",
+        "condition": "avg(response_time) > 1000",
+        "duration": "2m",
+        "severity": "warning",
+        "channels": ["slack"]
+      },
+      {
+        "name": "Database Connection Issues",
+        "condition": "avg(db_connection_pool_usage) > 85",
+        "duration": "1m",
+        "severity": "critical", 
+        "channels": ["slack", "email"]
+      },
+      {
+        "name": "Container Resource Exhaustion",
+        "condition": "avg(container_memory_percent) > 90 OR avg(container_cpu_percent) > 90",
+        "duration": "5m",
+        "severity": "warning",
+        "channels": ["slack"]
+      }
+    ],
+    "business_alerts": [
+      {
+        "name": "Low User Engagement",
+        "condition": "avg(daily_active_users) < 100",
+        "duration": "1d",
+        "severity": "warning",
+        "channels": ["email"]
+      },
+      {
+        "name": "High Solve Abandonment Rate",
+        "condition": "(completed_solves / started_solves) < 0.3",
+        "duration": "1h",
+        "severity": "warning", 
+        "channels": ["slack"]
+      }
+    ]
+  },
+  "notification_channels": {
+    "slack": {
+      "webhook_url": "${SLACK_WEBHOOK_URL}",
+      "channel": "#rubiks-alerts",
+      "username": "RubiksMonitor"
+    },
+    "email": {
+      "smtp_server": "${SMTP_SERVER}",
+      "recipients": ["dev-team@rubikscube.app", "ops-team@rubikscube.app"]
+    },
+    "pagerduty": {
+      "integration_key": "${PAGERDUTY_INTEGRATION_KEY}",
+      "service": "rubiks-cube-production"
+    }
+  },
+  "data_retention": {
+    "performance_metrics": "30d",
+    "error_logs": "90d", 
+    "user_sessions": "365d",
+    "business_metrics": "2y"
+  }
+}

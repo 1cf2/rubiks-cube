@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Generated files
+*.log
+*.lock
+*.tsbuildinfo
+
+# Configuration files that should not be formatted
+.env*
+*.min.js
+*.min.css
+
+# Documentation that has specific formatting
+CHANGELOG.md
+LICENSE

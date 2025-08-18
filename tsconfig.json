@@ -1,0 +1,82 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "rootDir": "./packages",
+    "composite": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    
+    // Strict Type Checking for 3D Mathematics
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    
+    // Additional Checks for Code Quality
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    
+    // Module Resolution
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    
+    // Path mapping for cross-package imports
+    "baseUrl": "./packages",
+    "paths": {
+      "@rubiks-cube/cube-engine": ["cube-engine/src"],
+      "@rubiks-cube/cube-engine/*": ["cube-engine/src/*"],
+      "@rubiks-cube/three-renderer": ["three-renderer/src"],
+      "@rubiks-cube/three-renderer/*": ["three-renderer/src/*"],
+      "@rubiks-cube/web-app": ["web-app/src"],
+      "@rubiks-cube/web-app/*": ["web-app/src/*"],
+      "@rubiks-cube/api-server": ["api-server/src"],
+      "@rubiks-cube/api-server/*": ["api-server/src/*"],
+      "@rubiks-cube/shared": ["shared/src"],
+      "@rubiks-cube/shared/*": ["shared/src/*"]
+    },
+    
+    // JSX Configuration for React
+    "jsx": "react-jsx",
+    
+    // Source Maps for Debugging
+    "sourceMap": true,
+    "inlineSources": true,
+    
+    // Performance
+    "incremental": true
+  },
+  "include": [
+    "packages/*/src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/cube-engine" },
+    { "path": "./packages/three-renderer" },
+    { "path": "./packages/api-server" },
+    { "path": "./packages/web-app" }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/types/**/*",
+    "src/constants/**/*"
+  ],
+  "exclude": [
+    "src/config/**/*",
+    "src/monitoring/**/*",
+    "src/validation/**/*"
+  ]
+}
