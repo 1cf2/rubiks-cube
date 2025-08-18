@@ -73,10 +73,12 @@ export interface AnimationQueue {
 
 export interface VisualFeedback {
   readonly face: FacePosition;
-  readonly state: 'normal' | 'hover' | 'selected' | 'rotating';
+  readonly state: 'normal' | 'hover' | 'selected' | 'rotating' | 'blocked' | 'preview' | 'success';
   readonly opacity?: number;
   readonly emissiveIntensity?: number;
   readonly color?: readonly [number, number, number]; // RGB values 0-1
+  readonly pulse?: boolean; // Enable pulsing animation
+  readonly intensity?: number; // Overall feedback intensity multiplier
 }
 
 export interface MouseInteractionState {

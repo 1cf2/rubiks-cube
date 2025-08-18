@@ -152,6 +152,15 @@ export class FaceHighlighting {
         case 'rotating':
           this.setRotatingState(highlightMesh, material, feedback);
           break;
+        case 'blocked':
+          this.setBlockedState(highlightMesh, material, feedback);
+          break;
+        case 'preview':
+          this.setPreviewState(highlightMesh, material, feedback);
+          break;
+        case 'success':
+          this.setSuccessState(highlightMesh, material, feedback);
+          break;
       }
 
       return { success: true, data: undefined };
@@ -234,9 +243,72 @@ export class FaceHighlighting {
     // Animate to target opacity
     this.animateOpacity(mesh, material, targetOpacity, this.transitionDuration / 2);
     
-    if (this.pulseAnimation) {
+    if (this.pulseAnimation || feedback.pulse) {
       this.startPulseAnimation(feedback.face, material, targetOpacity, 150); // Faster pulse
     }
+  }
+
+  /**
+   * Set blocked state (red tint with low opacity)
+   */
+  private setBlockedState(
+    mesh: THREE.Mesh, 
+    material: THREE.MeshBasicMaterial, 
+    feedback: VisualFeedback
+  ): void {
+    mesh.visible = true;
+    
+    const targetOpacity = feedback.opacity ?? 0.15;
+    const color = feedback.color ?? [1.0, 0.3, 0.3];
+    
+    material.color.setRGB(...color);
+    
+    // Quick fade to show blocked state
+    this.animateOpacity(mesh, material, targetOpacity, this.transitionDuration / 3);
+  }
+
+  /**
+   * Set preview state (subtle highlight for direction preview)
+   */
+  private setPreviewState(
+    mesh: THREE.Mesh, 
+    material: THREE.MeshBasicMaterial, 
+    feedback: VisualFeedback
+  ): void {
+    mesh.visible = true;
+    
+    const targetOpacity = feedback.opacity ?? 0.1;
+    const color = feedback.color ?? [0.8, 0.8, 1.0];
+    
+    material.color.setRGB(...color);
+    
+    // Very subtle animation
+    this.animateOpacity(mesh, material, targetOpacity, this.transitionDuration / 2);
+  }
+
+  /**
+   * Set success state (green flash for completed moves)
+   */
+  private setSuccessState(
+    mesh: THREE.Mesh, 
+    material: THREE.MeshBasicMaterial, 
+    feedback: VisualFeedback
+  ): void {
+    mesh.visible = true;
+    
+    const targetOpacity = feedback.opacity ?? 0.4;
+    const color = feedback.color ?? [0.2, 1.0, 0.3];
+    
+    material.color.setRGB(...color);
+    
+    // Brief success animation
+    this.animateOpacity(mesh, material, targetOpacity, this.transitionDuration / 2);
+    
+    // Auto-fade after brief display
+    setTimeout(() => {
+      this.animateOpacity(mesh, material, 0, this.transitionDuration);
+      setTimeout(() => { mesh.visible = false; }, this.transitionDuration);
+    }, 300);
   }
 
   /**
@@ -357,13 +429,20 @@ export class FaceHighlighting {
 
     // Determine state based on color and opacity
     const color = material.color;
+    const opacity = material.opacity;
     
-    if (color.r > 0.8 && color.g < 0.4 && color.b < 0.4) {
+    if (color.r > 0.8 && color.g < 0.4 && color.b < 0.4 && opacity > 0.5) {
       return 'rotating';
+    } else if (color.r > 0.8 && color.g < 0.4 && color.b < 0.4 && opacity < 0.3) {
+      return 'blocked';
     } else if (color.r > 0.8 && color.g > 0.5 && color.b < 0.3) {
       return 'selected';
-    } else if (color.b > 0.8) {
+    } else if (color.r < 0.5 && color.g > 0.8 && color.b < 0.5) {
+      return 'success';
+    } else if (color.b > 0.8 && opacity > 0.15) {
       return 'hover';
+    } else if (color.b > 0.8 && opacity < 0.15) {
+      return 'preview';
     }
     
     return 'normal';

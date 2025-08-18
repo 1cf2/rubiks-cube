@@ -10,12 +10,21 @@ import {
 } from '@rubiks-cube/shared/types';
 import { useMouseGestures } from '../../hooks/useMouseGestures';
 import { useCubeInteraction } from '../../hooks/useCubeInteraction';
+import { RotationPreviewManager } from '../three/RotationPreviewManager';
+import { useMoveCompletionFeedback } from '../three/MoveCompletionFeedback';
+import { useInvalidMovePrevention } from '../three/InvalidMovePreventionManager';
 
 export interface MouseControlsProps {
   camera: THREE.Camera | null;
   scene: THREE.Scene | null;
   cubeGroup: THREE.Group | null;
   isEnabled?: boolean;
+  enableRotationPreview?: boolean;
+  previewIntensity?: number;
+  enableCompletionFeedback?: boolean;
+  completionIntensity?: number;
+  enableInvalidMovePrevention?: boolean;
+  allowConcurrentAnimations?: boolean;
   onFaceHover?: (face: FacePosition | null) => void;
   onFaceSelect?: (face: FacePosition) => void;
   onRotationStart?: (command: RotationCommand) => void;
@@ -28,8 +37,14 @@ export interface MouseControlsProps {
 export const MouseControls: React.FC<MouseControlsProps> = ({
   camera,
   scene,
-  cubeGroup: _cubeGroup,
+  cubeGroup,
   isEnabled = true,
+  enableRotationPreview = true,
+  previewIntensity = 0.6,
+  enableCompletionFeedback = true,
+  completionIntensity = 1.0,
+  enableInvalidMovePrevention = true,
+  allowConcurrentAnimations = false,
   onFaceHover,
   onFaceSelect,
   onRotationStart,
@@ -40,8 +55,19 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [, setVisualFeedback] = useState<Map<FacePosition, VisualFeedback>>(new Map());
+  const checkMoveValidityRef = useRef<((face: FacePosition) => boolean) | null>(null);
 
-  // Cube interaction hook
+  // Move completion feedback hook
+  const { 
+    showSuccessFlash,
+    FeedbackComponent 
+  } = useMoveCompletionFeedback(scene, cubeGroup, {
+    isEnabled: enableCompletionFeedback,
+    flashIntensity: completionIntensity,
+    ...(onError && { onError }),
+  });
+
+  // Cube interaction hook first to get state
   const {
     interactionState,
     currentRotation,
@@ -66,15 +92,31 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       onFaceHover?.(face);
     },
     onFaceSelect: (face) => {
+      // Check if move is valid before selecting
+      if (enableInvalidMovePrevention && checkMoveValidityRef.current && !checkMoveValidityRef.current(face)) {
+        return; // Block the selection if move is invalid
+      }
+      
       updateVisualFeedback(face, 'selected');
       onFaceSelect?.(face);
     },
     onRotationStart: (command) => {
+      // Final check before starting rotation
+      if (enableInvalidMovePrevention && checkMoveValidityRef.current && !checkMoveValidityRef.current(command.face)) {
+        return; // Block the rotation if move is invalid
+      }
+      
       updateVisualFeedback(command.face, 'rotating');
       onRotationStart?.(command);
     },
     onRotationComplete: (command, move) => {
       updateVisualFeedback(command.face, 'normal');
+      
+      // Show completion feedback
+      if (enableCompletionFeedback) {
+        showSuccessFlash(command.face);
+      }
+      
       onRotationComplete?.(command, move);
     },
     onError: (error, message) => {
@@ -82,6 +124,28 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       onError?.(error, message);
     },
   });
+
+  // Invalid move prevention hook
+  const {
+    blockedMoves,
+    checkMoveValidity,
+    PreventionComponent
+  } = useInvalidMovePrevention(scene, cubeGroup, {
+    currentlyAnimating: [
+      ...(currentRotation ? [currentRotation.face] : []),
+      ...(interactionState.selectedFace && isAnimating ? [interactionState.selectedFace] : [])
+    ],
+    allowConcurrentAnimations,
+    isEnabled: enableInvalidMovePrevention,
+    onInvalidMoveAttempt: (face, reason) => {
+      console.warn(`Invalid move attempt on ${face}: ${reason}`);
+    },
+    ...(onError && { onError }),
+  });
+
+  // Update the ref with the current function
+  checkMoveValidityRef.current = checkMoveValidity;
+
 
   // Mouse gesture hook
   const { cursorState, handlers } = useMouseGestures({
@@ -132,6 +196,9 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       case 'hover': return 0.2;
       case 'selected': return 0.4;
       case 'rotating': return 0.6;
+      case 'blocked': return 0.15;
+      case 'preview': return 0.1;
+      case 'success': return 0.4;
       default: return 0;
     }
   };
@@ -142,6 +209,9 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       case 'hover': return 0;
       case 'selected': return 0.1;
       case 'rotating': return 0.2;
+      case 'blocked': return 0;
+      case 'preview': return 0;
+      case 'success': return 0.1;
       default: return 0;
     }
   };
@@ -152,6 +222,9 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       case 'hover': return [0.3, 0.7, 1.0] as const; // Light blue
       case 'selected': return [1.0, 0.6, 0.1] as const; // Orange
       case 'rotating': return [1.0, 0.2, 0.2] as const; // Red
+      case 'blocked': return [1.0, 0.3, 0.3] as const; // Light red
+      case 'preview': return [0.8, 0.8, 1.0] as const; // Very light blue
+      case 'success': return [0.2, 1.0, 0.3] as const; // Green
       default: return [1.0, 1.0, 1.0] as const; // White
     }
   };
@@ -228,22 +301,40 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={containerStyle}
-      onMouseDown={handleContainerMouseDown}
-      onMouseMove={handleContainerMouseMove}
-      onMouseUp={handleContainerMouseUp}
-      onMouseLeave={handleContainerMouseLeave}
-      onMouseEnter={handleContainerMouseEnter}
-      onContextMenu={handleContextMenu}
-      role="button"
-      tabIndex={isEnabled ? 0 : -1}
-      aria-label="Rubik's cube interaction area"
-      aria-disabled={!isEnabled}
-      data-testid="mouse-controls"
-    >
+    <>
+      {/* Rotation preview system */}
+      <RotationPreviewManager
+        scene={scene}
+        cubeGroup={cubeGroup}
+        hoveredFace={interactionState.hoveredFace}
+        currentDrag={interactionState.dragGesture}
+        isEnabled={isEnabled && enableRotationPreview}
+        previewIntensity={previewIntensity}
+        {...(onError && { onError })}
+      />
+      
+      {/* Move completion feedback system */}
+      <FeedbackComponent />
+      
+      {/* Invalid move prevention system */}
+      <PreventionComponent />
+      
+      <div
+        ref={containerRef}
+        className={className}
+        style={containerStyle}
+        onMouseDown={handleContainerMouseDown}
+        onMouseMove={handleContainerMouseMove}
+        onMouseUp={handleContainerMouseUp}
+        onMouseLeave={handleContainerMouseLeave}
+        onMouseEnter={handleContainerMouseEnter}
+        onContextMenu={handleContextMenu}
+        role="button"
+        tabIndex={isEnabled ? 0 : -1}
+        aria-label="Rubik's cube interaction area"
+        aria-disabled={!isEnabled}
+        data-testid="mouse-controls"
+      >
       {/* Debug information in development */}
       {process.env['NODE_ENV'] === 'development' && (
         <div
@@ -270,8 +361,14 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
               Rotation: {currentRotation.face} {currentRotation.direction}
             </div>
           )}
+          {enableInvalidMovePrevention && blockedMoves.length > 0 && (
+            <div style={{ color: '#ff6b6b', marginTop: '4px' }}>
+              <div>Blocked: {blockedMoves[blockedMoves.length - 1]?.reason}</div>
+            </div>
+          )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
