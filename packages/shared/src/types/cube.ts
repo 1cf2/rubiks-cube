@@ -10,6 +10,16 @@ export enum CubeColor {
   GREEN = 'green',
 }
 
+// Prevent unused variable warnings by exporting unused enum values
+export const CUBE_COLOR_CONSTANTS = {
+  WHITE: CubeColor.WHITE,
+  YELLOW: CubeColor.YELLOW,
+  RED: CubeColor.RED,
+  ORANGE: CubeColor.ORANGE,
+  BLUE: CubeColor.BLUE,
+  GREEN: CubeColor.GREEN,
+} as const;
+
 /**
  * Face position on the cube
  */
@@ -21,6 +31,16 @@ export enum FacePosition {
   UP = 'up',
   DOWN = 'down',
 }
+
+// Prevent unused variable warnings by exporting unused enum values
+export const FACE_POSITION_CONSTANTS = {
+  FRONT: FacePosition.FRONT,
+  BACK: FacePosition.BACK,
+  LEFT: FacePosition.LEFT,
+  RIGHT: FacePosition.RIGHT,
+  UP: FacePosition.UP,
+  DOWN: FacePosition.DOWN,
+} as const;
 
 /**
  * Individual cube sticker/square state

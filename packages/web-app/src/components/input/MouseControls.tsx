@@ -243,7 +243,11 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 
   // Handle container mouse events
   const handleContainerMouseDown = useCallback((event: React.MouseEvent) => {
-    if (!isEnabled || isAnimating) return;
+    console.log('MouseControls: Mouse down event triggered');
+    if (!isEnabled || isAnimating) {
+      console.log('MouseControls: Interaction blocked - enabled:', isEnabled, 'animating:', isAnimating);
+      return;
+    }
     handlers.onMouseDown(event);
   }, [isEnabled, isAnimating, handlers]);
 
@@ -253,6 +257,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   }, [isEnabled, handlers]);
 
   const handleContainerMouseUp = useCallback((event: React.MouseEvent) => {
+    console.log('MouseControls: Mouse up event triggered');
     if (!isEnabled) return;
     handlers.onMouseUp(event);
   }, [isEnabled, handlers]);
@@ -300,6 +305,15 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     ...style,
   };
 
+  // Debug: log component state
+  console.log('MouseControls render:', {
+    isEnabled,
+    hasCamera: !!camera,
+    hasScene: !!scene,
+    hasCubeGroup: !!cubeGroup,
+    cursorState
+  });
+
   return (
     <>
       {/* Rotation preview system */}
@@ -336,7 +350,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         data-testid="mouse-controls"
       >
       {/* Debug information in development */}
-      {process.env['NODE_ENV'] === 'development' && (
+      {true && (
         <div
           style={{
             position: 'absolute',

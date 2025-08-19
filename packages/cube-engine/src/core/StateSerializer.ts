@@ -90,10 +90,11 @@ export class StateSerializer {
         case 'compact':
           result = StateSerializer.createCompactFormat(serializedState);
           break;
-        case 'base64':
+        case 'base64': {
           const jsonString = JSON.stringify(serializedState);
           result = btoa(jsonString);
           break;
+        }
         default:
           throw new Error(`Unsupported format: ${opts.format}`);
       }
@@ -138,10 +139,11 @@ export class StateSerializer {
           case 'compact':
             parsedData = StateSerializer.parseCompactFormat(serializedData);
             break;
-          case 'base64':
+          case 'base64': {
             const decodedJson = atob(serializedData);
             parsedData = JSON.parse(decodedJson);
             break;
+          }
           default:
             errors.push(`Unsupported format: ${opts.format}`);
             return { success: false, errors, warnings };
@@ -278,7 +280,7 @@ export class StateSerializer {
       let mimeType: string;
 
       switch (format) {
-        case 'json':
+        case 'json': {
           const serializeResult = StateSerializer.serialize(state, { format: 'json' });
           if (!serializeResult.success) {
             return { success: false, error: serializeResult.error };
@@ -286,6 +288,7 @@ export class StateSerializer {
           content = serializeResult.data;
           mimeType = 'application/json';
           break;
+        }
 
         case 'csv':
           content = StateSerializer.createCSVFormat(state);

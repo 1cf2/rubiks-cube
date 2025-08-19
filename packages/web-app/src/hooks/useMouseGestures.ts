@@ -92,10 +92,13 @@ export function useMouseGestures(
 
   // Handle mouse down
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
+    console.log('useMouseGestures: Mouse down triggered');
     event.preventDefault();
     
     const position = getMousePosition(event);
     const startTime = performance.now();
+    
+    console.log('useMouseGestures: Mouse position:', position);
     
     const initialGesture: DragGesture = {
       startPosition: position,
@@ -110,6 +113,7 @@ export function useMouseGestures(
     isMouseDownRef.current = true;
     setCursorState(CursorState.GRABBING);
     
+    console.log('useMouseGestures: Calling onDragStart with gesture:', initialGesture);
     opts.onDragStart?.(initialGesture);
   }, [getMousePosition, opts]);
 

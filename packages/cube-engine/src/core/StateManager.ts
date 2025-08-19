@@ -222,7 +222,7 @@ export class StateManager {
       for (const error of corruptionErrors) {
         switch (error.code) {
           case 'INVALID_COLOR_COUNT':
-          case 'WRONG_COLOR_COUNT':
+          case 'WRONG_COLOR_COUNT': {
             // Attempt to redistribute colors properly
             const redistributionResult = this.attemptColorRedistribution();
             if (redistributionResult.success) {
@@ -233,9 +233,10 @@ export class StateManager {
               errors.push(`Cannot fix color distribution: ${error.message}`);
             }
             break;
+          }
 
           case 'MISSING_FACE_TYPE':
-          case 'DUPLICATE_FACE_TYPE':
+          case 'DUPLICATE_FACE_TYPE': {
             // Attempt to fix face structure
             const faceFixResult = this.attemptFaceStructureFix();
             if (faceFixResult.success) {
@@ -246,6 +247,7 @@ export class StateManager {
               errors.push(`Cannot fix face structure: ${error.message}`);
             }
             break;
+          }
 
           case 'INVALID_COLOR':
             // Replace invalid colors with valid ones

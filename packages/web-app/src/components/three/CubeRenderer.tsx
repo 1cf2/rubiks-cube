@@ -12,9 +12,10 @@ import { CUBE_COLORS } from '@rubiks-cube/shared';
 interface CubeRendererProps {
   scene: Scene;
   isAnimating?: boolean;
+  onCubeGroupReady?: (cubeGroup: Group) => void;
 }
 
-export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating = false }) => {
+export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating = false, onCubeGroupReady }) => {
   const cubeGroupRef = useRef<Group | null>(null);
   const rotationSpeedRef = useRef<number>(0.005);
 
@@ -47,6 +48,27 @@ export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating =
           
           // Position cube in grid
           cube.position.set(x, y, z);
+          
+          // Name the cube based on which faces are visible for raycasting
+          const visibleFaces: string[] = [];
+          if (x === 1) visibleFaces.push('right');
+          if (x === -1) visibleFaces.push('left');
+          if (y === 1) visibleFaces.push('up');
+          if (y === -1) visibleFaces.push('down');
+          if (z === 1) visibleFaces.push('front');
+          if (z === -1) visibleFaces.push('back');
+          
+          // Use primary visible face for naming (prioritize front face if multiple)
+          cube.name = visibleFaces.includes('front') ? 'front-face' :
+                     visibleFaces.includes('back') ? 'back-face' :
+                     visibleFaces.includes('left') ? 'left-face' :
+                     visibleFaces.includes('right') ? 'right-face' :
+                     visibleFaces.includes('up') ? 'up-face' :
+                     visibleFaces.includes('down') ? 'down-face' :
+                     `cube-${x}-${y}-${z}`;
+          
+          // Store position info for easier access
+          cube.userData = { x, y, z, visibleFaces };
           
           // Determine which faces are visible and assign colors
           const cubeMaterials: Material[] = [];
@@ -102,6 +124,9 @@ export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating =
     }
 
     scene.add(cubeGroup);
+
+    // Notify parent component that cube group is ready
+    onCubeGroupReady?.(cubeGroup);
 
     // Cleanup
     return () => {

@@ -151,7 +151,12 @@ export function useCubeInteraction(
 
   // Handle drag start
   const handleDragStart = useCallback((gesture: DragGesture) => {
-    if (!camera || !scene || isAnimating) return;
+    console.log('useCubeInteraction: Drag start triggered', gesture);
+    
+    if (!camera || !scene || isAnimating) {
+      console.log('useCubeInteraction: Drag start blocked - camera:', !!camera, 'scene:', !!scene, 'animating:', isAnimating);
+      return;
+    }
 
     const raycastResult = RaycastingUtils.raycastCubeFaces({
       camera,
@@ -160,12 +165,16 @@ export function useCubeInteraction(
       recursive: true,
     });
 
+    console.log('useCubeInteraction: Raycast result for drag start:', raycastResult);
+
     if (!raycastResult.success || !raycastResult.data) {
+      console.log('useCubeInteraction: No face detected at drag start');
       callbacks.onError?.(CubeError.RAYCASTING_FAILED, 'No face detected at drag start');
       return;
     }
 
     const selectedFace = raycastResult.data.facePosition;
+    console.log('useCubeInteraction: Selected face:', selectedFace);
     
     setInteractionState(prev => ({
       ...prev,

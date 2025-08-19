@@ -11,10 +11,10 @@ import {
 export interface AnimationStateManagerOptions {
   maxConcurrent?: number;
   maxQueueSize?: number;
-  onAnimationStart?: (animation: CubeAnimation) => void;
-  onAnimationComplete?: (animation: CubeAnimation) => void;
-  onAnimationError?: (animation: CubeAnimation, error: CubeError) => void;
-  onQueueChange?: (queue: AnimationQueue) => void;
+  onAnimationStart?: (_animation: CubeAnimation) => void;
+  onAnimationComplete?: (_animation: CubeAnimation) => void;
+  onAnimationError?: (_animation: CubeAnimation, _error: CubeError) => void;
+  onQueueChange?: (_queue: AnimationQueue) => void;
 }
 
 export class AnimationStateManager {
@@ -24,12 +24,12 @@ export class AnimationStateManager {
   private maxConcurrent: number;
   private maxQueueSize: number;
 
-  private onAnimationStart: ((animation: CubeAnimation) => void) | undefined;
-  private onAnimationComplete: ((animation: CubeAnimation) => void) | undefined;
-  private onAnimationError: ((animation: CubeAnimation, error: CubeError) => void) | undefined;
-  private onQueueChange: ((queue: AnimationQueue) => void) | undefined;
+  private onAnimationStart: ((_animation: CubeAnimation) => void) | undefined;
+  private onAnimationComplete: ((_animation: CubeAnimation) => void) | undefined;
+  private onAnimationError: ((_animation: CubeAnimation, _error: CubeError) => void) | undefined;
+  private onQueueChange: ((_queue: AnimationQueue) => void) | undefined;
 
-  private animationTimeouts = new Map<string, NodeJS.Timeout>();
+  private animationTimeouts = new Map<string, number>();
 
   constructor(options: AnimationStateManagerOptions = {}) {
     this.maxConcurrent = options.maxConcurrent ?? 1;
@@ -125,7 +125,7 @@ export class AnimationStateManager {
     this.onAnimationStart?.(startedAnimation);
 
     // Set timeout for animation completion
-    const timeout = setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       this.completeAnimation(startedAnimation.id);
     }, startedAnimation.duration);
 
@@ -150,7 +150,7 @@ export class AnimationStateManager {
       // Clear timeout
       const timeout = this.animationTimeouts.get(animationId);
       if (timeout) {
-        clearTimeout(timeout);
+        window.clearTimeout(timeout);
         this.animationTimeouts.delete(animationId);
       }
 
@@ -188,7 +188,7 @@ export class AnimationStateManager {
       if (this.currentAnimation && this.currentAnimation.id === animationId) {
         const timeout = this.animationTimeouts.get(animationId);
         if (timeout) {
-          clearTimeout(timeout);
+          window.clearTimeout(timeout);
           this.animationTimeouts.delete(animationId);
         }
 
@@ -248,7 +248,7 @@ export class AnimationStateManager {
     });
 
     // Clear all timeouts
-    this.animationTimeouts.forEach(timeout => clearTimeout(timeout));
+    this.animationTimeouts.forEach(timeout => window.clearTimeout(timeout));
     this.animationTimeouts.clear();
 
     this.notifyQueueChange();
