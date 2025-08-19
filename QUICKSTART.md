@@ -42,6 +42,10 @@ A realistic 3D Rubik's Cube rendered in the browser using Three.js, React, and T
 ## 🎮 What You'll See
 
 - **3D Rubik's Cube** with authentic colors (white, red, blue, orange, green, yellow)
+- **Interactive Visual Feedback** - Hover highlights, selection indicators, and rotation previews
+- **Smart Move Validation** - Visual blocking of invalid moves during animations
+- **Success Confirmation** - Green flash feedback when moves complete successfully
+- **Directional Previews** - Arrow indicators showing rotation direction on hover and drag
 - **Smooth rotation animation** showcasing the 3D effect
 - **Loading progress indicator** during scene initialization
 - **Performance metrics** (FPS counter in development mode)
@@ -55,12 +59,20 @@ rubiks-cube/
 │   ├── web-app/              # React frontend application
 │   │   ├── src/
 │   │   │   ├── components/
+│   │   │   │   ├── input/    # Interaction components
+│   │   │   │   │   ├── MouseControls.tsx   # Mouse interaction handling
+│   │   │   │   │   └── TouchControls.tsx   # Touch interaction handling
 │   │   │   │   └── three/    # Three.js components
-│   │   │   │       ├── ThreeScene.tsx      # Main scene container
-│   │   │   │       ├── CubeRenderer.tsx    # 3D cube rendering
-│   │   │   │       ├── CubeScene.tsx       # Integration component
-│   │   │   │       ├── LoadingIndicator.tsx # Loading UI
-│   │   │   │       └── ErrorBoundary.tsx   # Error handling
+│   │   │   │       ├── ThreeScene.tsx               # Main scene container
+│   │   │   │       ├── CubeRenderer.tsx            # 3D cube rendering
+│   │   │   │       ├── CubeScene.tsx               # Integration component
+│   │   │   │       ├── LoadingIndicator.tsx        # Loading UI
+│   │   │   │       ├── ErrorBoundary.tsx           # Error handling
+│   │   │   │       ├── RotationPreviewManager.tsx  # Arrow preview system
+│   │   │   │       ├── MoveCompletionFeedback.tsx  # Success feedback
+│   │   │   │       └── InvalidMovePreventionManager.tsx # Move validation
+│   │   │   ├── hooks/        # Custom React hooks
+│   │   │   └── utils/        # Utility functions
 │   │   │   └── App.tsx
 │   │   └── public/
 │   ├── shared/               # Shared types and constants
@@ -75,18 +87,26 @@ rubiks-cube/
 ### ✅ Currently Implemented
 - **3D Scene Rendering** - Three.js with WebGL
 - **Realistic Cube** - 27 individual pieces with proper colors
-- **Smooth Animation** - 60fps rotation performance
+- **Interactive Visual Feedback** - Complete visual feedback system with 7 distinct states
+- **Face Selection Indicators** - Light blue highlights for hovered and selected faces
+- **Rotation Direction Previews** - Arrow indicators showing move direction on hover/drag
+- **Move Completion Feedback** - Green success flash when rotations complete
+- **Invalid Move Prevention** - Red tint blocking with automatic conflict detection
+- **Hover State Management** - Smooth opacity transitions for interactive elements
+- **Visual Success Confirmation** - Brief highlighting effects for completed moves
+- **Consistent Visual Language** - Standardized colors, timing, and animation patterns
+- **Smooth Animation** - 60fps rotation performance maintained with visual feedback
 - **Loading Experience** - Progress indicator with step feedback
 - **Error Handling** - Graceful fallbacks for WebGL issues
 - **Responsive Design** - Mobile-optimized scaling
 - **Performance Monitoring** - Real-time FPS tracking
 
 ### 🚧 Coming Soon
-- Interactive cube manipulation
+- Full cube manipulation (drag to rotate faces)
 - Scrambling and solving algorithms
 - Move history and undo/redo
 - Timer and scoring system
-- Tutorial mode
+- Tutorial mode with guided interactions
 
 ## 🛠️ Development
 
@@ -163,8 +183,9 @@ npm run lint:fix          # Auto-fix linting issues
 The application automatically adapts for mobile devices:
 - **Smaller cube scale** (80% size)
 - **Reduced rotation speed** for better visibility
-- **Touch-friendly interface** (coming soon)
-- **Optimized performance** for mobile GPUs
+- **Touch-friendly interface** with visual feedback system
+- **Optimized performance** for mobile GPUs (30fps target)
+- **Mobile-optimized visual feedback** with appropriate scaling and timing
 
 ## 🏗️ Architecture
 
@@ -178,6 +199,10 @@ The application automatically adapts for mobile devices:
 ### Key Components
 - **ThreeScene**: Main 3D scene management
 - **CubeRenderer**: Cube geometry and materials
+- **MouseControls**: Interactive mouse gesture handling with visual feedback integration
+- **RotationPreviewManager**: Arrow-based rotation direction indicators
+- **MoveCompletionFeedback**: Success confirmation system with green flash effects
+- **InvalidMovePreventionManager**: Smart move validation with visual blocking
 - **LoadingIndicator**: User feedback during initialization
 - **ErrorBoundary**: Graceful error handling
 

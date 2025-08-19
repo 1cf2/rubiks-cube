@@ -1,5 +1,6 @@
 import { AnimationStateManager } from '../../src/state/AnimationStateManager';
-import { FacePosition, RotationDirection } from '@rubiks-cube/shared/types';
+import { FacePosition } from '@rubiks-cube/shared/types/cube';
+import { RotationDirection } from '@rubiks-cube/shared/types';
 
 // Mock setTimeout and clearTimeout
 jest.useFakeTimers();
@@ -92,8 +93,9 @@ describe('AnimationStateManager', () => {
 
     it('should reject animation when queue is full', () => {
       // Fill the queue
+      const facePositions = Object.values(FacePosition);
       for (let i = 0; i < 6; i++) {
-        const face = Object.values(FacePosition)[i % 6];
+        const face = facePositions[i % facePositions.length];
         if (face) {
           manager.enqueueAnimation(face, RotationDirection.CLOCKWISE, 'F');
         }
