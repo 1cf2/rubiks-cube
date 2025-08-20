@@ -4,8 +4,10 @@ import { ThreeScene, useThreeContext } from './ThreeScene';
 import { CubeRenderer } from './CubeRenderer';
 import { ThreeJSErrorBoundary } from './ErrorBoundary';
 import { MouseControls } from '../input/MouseControls';
+import { DebugControls } from '../debug/DebugControls';
 import { FacePosition, RotationCommand, Move, CubeError } from '@rubiks-cube/shared/types';
 import { RotationDirection } from '@rubiks-cube/shared/types/mouse-interactions';
+import { featureFlags } from '../../utils/featureFlags';
 
 const CubeSceneContent: React.FC = () => {
   const { scene, camera } = useThreeContext();
@@ -27,37 +29,38 @@ const CubeSceneContent: React.FC = () => {
     setCubeGroup(group);
   };
 
-  const handleFaceHover = (face: FacePosition | null) => {
-    console.log('Face hovered:', face);
+  const handleFaceHover = (_face: FacePosition | null) => {
+    // Face hover handled
   };
 
-  const handleFaceSelect = (face: FacePosition) => {
-    console.log('Face selected:', face);
+  const handleFaceSelect = (_face: FacePosition) => {
+    // Face select handled
   };
 
   const handleRotationStart = (command: RotationCommand) => {
-    console.log('Rotation started:', command);
+    console.log('🎯 handleRotationStart called:', command);
+    console.log('🎯 cubeGroup exists:', !!cubeGroup);
+    console.log('🎯 animationRef.current?.isAnimating:', animationRef.current?.isAnimating);
+    
     if (cubeGroup && !animationRef.current?.isAnimating) {
+      console.log('🎯 Starting smooth rotation!');
       startSmoothRotation(cubeGroup, command);
+    } else {
+      console.log('🎯 Rotation blocked - cubeGroup missing or already animating');
     }
   };
 
-  const handleRotationComplete = (command: RotationCommand, move: Move) => {
-    console.log('Rotation completed:', command, move);
+  const handleRotationComplete = (_command: RotationCommand, _move: Move) => {
+    // Rotation completion handled
   };
 
   // Start smooth rotation animation
   const startSmoothRotation = useCallback((group: Group, command: RotationCommand) => {
-    console.log('startSmoothRotation called with command:', command);
     const pieces = getFacePieces(group, command.face);
-    console.log('Found pieces for face', command.face, ':', pieces.length);
     
     if (pieces.length === 0) {
-      console.warn('No pieces found for face:', command.face);
       return;
     }
-
-    console.log('Starting smooth rotation for', pieces.length, 'pieces');
 
     // Calculate target angle
     let targetAngle = Math.PI / 2; // 90 degrees
@@ -110,7 +113,6 @@ const CubeSceneContent: React.FC = () => {
     };
 
     // Start animation loop
-    console.log('Starting animation loop');
     animateRotation();
   }, []);
 
@@ -118,16 +120,11 @@ const CubeSceneContent: React.FC = () => {
   const animateRotation = useCallback(() => {
     const animation = animationRef.current;
     if (!animation || !animation.isAnimating) {
-      console.log('Animation loop stopped - no animation or not animating');
       return;
     }
 
     const elapsed = performance.now() - animation.startTime;
     const progress = Math.min(elapsed / animation.duration, 1);
-    
-    if (elapsed < 100) { // Only log for first 100ms to avoid spam
-      console.log('Animation progress:', progress.toFixed(3));
-    }
 
     // Ease-out function
     const easeProgress = 1 - Math.pow(1 - progress, 3);
@@ -148,7 +145,6 @@ const CubeSceneContent: React.FC = () => {
       requestAnimationFrame(animateRotation);
     } else {
       // Animation complete
-      console.log('Animation completed');
       animationRef.current = null;
     }
   }, []);
@@ -160,7 +156,6 @@ const CubeSceneContent: React.FC = () => {
     group.traverse((child) => {
       if (child instanceof Mesh && child.userData) {
         const { x, y, z } = child.userData;
-        // console.log('Checking piece at', x, y, z, 'for face', face);
         
         // Check if this piece is part of the rotating face
         switch (face) {
@@ -189,9 +184,10 @@ const CubeSceneContent: React.FC = () => {
     return pieces;
   };
 
-  const handleError = (error: CubeError, message?: string) => {
-    console.error('Cube interaction error:', error, message);
+  const handleError = (_error: CubeError, _message?: string) => {
+    // Error handling for cube interactions
   };
+
 
   return (
     <>
@@ -206,6 +202,7 @@ const CubeSceneContent: React.FC = () => {
         cubeGroup={cubeGroup}
         isEnabled={true}
         enableRotationPreview={true}
+        enableDebugOverlay={false}
         enableCompletionFeedback={true}
         enableInvalidMovePrevention={true}
         allowConcurrentAnimations={false}
@@ -214,6 +211,11 @@ const CubeSceneContent: React.FC = () => {
         onRotationStart={handleRotationStart}
         onRotationComplete={handleRotationComplete}
         onError={handleError}
+      />
+      
+      {/* Debug controls - shown in development or when debug flag is enabled */}
+      <DebugControls 
+        isVisible={featureFlags.getFlag('enableDevelopmentTools')} 
       />
     </>
   );

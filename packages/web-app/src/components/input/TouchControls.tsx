@@ -152,7 +152,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      TouchInteractionHandler.dispose();
+      TouchInteractionHandler.disposeStatic();
     };
   }, []);
 

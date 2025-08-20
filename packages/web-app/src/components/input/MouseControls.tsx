@@ -8,11 +8,14 @@ import {
   Move,
   CursorState,
 } from '@rubiks-cube/shared/types';
+// Using string literal for direction to avoid import issues
 import { useMouseGestures } from '../../hooks/useMouseGestures';
 import { useCubeInteraction } from '../../hooks/useCubeInteraction';
 import { RotationPreviewManager } from '../three/RotationPreviewManager';
 import { useMoveCompletionFeedback } from '../three/MoveCompletionFeedback';
 import { useInvalidMovePrevention } from '../three/InvalidMovePreventionManager';
+import { DebugOverlay } from '../debug/DebugOverlay';
+import { isOverlayEnabled } from '../../utils/featureFlags';
 
 export interface MouseControlsProps {
   camera: THREE.Camera | null;
@@ -25,11 +28,12 @@ export interface MouseControlsProps {
   completionIntensity?: number;
   enableInvalidMovePrevention?: boolean;
   allowConcurrentAnimations?: boolean;
-  onFaceHover?: (face: FacePosition | null) => void;
-  onFaceSelect?: (face: FacePosition) => void;
-  onRotationStart?: (command: RotationCommand) => void;
-  onRotationComplete?: (command: RotationCommand, move: Move) => void;
-  onError?: (error: CubeError, message?: string) => void;
+  enableDebugOverlay?: boolean;
+  onFaceHover?: (_face: FacePosition | null) => void;
+  onFaceSelect?: (_face: FacePosition) => void;
+  onRotationStart?: (_command: RotationCommand) => void;
+  onRotationComplete?: (_command: RotationCommand, _move: Move) => void;
+  onError?: (_error: CubeError, _message?: string) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -45,6 +49,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   completionIntensity = 1.0,
   enableInvalidMovePrevention = true,
   allowConcurrentAnimations = false,
+  enableDebugOverlay = false,
   onFaceHover,
   onFaceSelect,
   onRotationStart,
@@ -120,14 +125,13 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       onRotationComplete?.(command, move);
     },
     onError: (error, message) => {
-      console.error('Cube interaction error:', error, message);
+      // Handle error silently for now
       onError?.(error, message);
     },
   });
 
   // Invalid move prevention hook
   const {
-    blockedMoves,
     checkMoveValidity,
     PreventionComponent
   } = useInvalidMovePrevention(scene, cubeGroup, {
@@ -137,8 +141,8 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     ],
     allowConcurrentAnimations,
     isEnabled: enableInvalidMovePrevention,
-    onInvalidMoveAttempt: (face, reason) => {
-      console.warn(`Invalid move attempt on ${face}: ${reason}`);
+    onInvalidMoveAttempt: (_face, _reason) => {
+      // Invalid move blocked
     },
     ...(onError && { onError }),
   });
@@ -147,12 +151,12 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   checkMoveValidityRef.current = checkMoveValidity;
 
 
-  // Mouse gesture hook
-  const { cursorState, handlers } = useMouseGestures({
-    minDragDistance: 5,
-    maxDragTime: 5000,
-    snapThreshold: 15,
-    sensitivity: 1.0,
+  // Mouse gesture hook - optimized for trackpad with very low thresholds
+  const { cursorState, handlers, isDragging, currentGesture } = useMouseGestures({
+    minDragDistance: 1, // Minimal distance for trackpad
+    maxDragTime: 10000, // Longer time for trackpad gestures
+    snapThreshold: 5, // Very low threshold
+    sensitivity: 2.0, // High sensitivity for trackpad
     onDragStart: handleDragStart,
     onDragUpdate: handleDragUpdate,
     onDragEnd: handleDragEnd,
@@ -241,15 +245,11 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     }
   };
 
-  // Handle container mouse events
+  // Use handlers from useMouseGestures hook
   const handleContainerMouseDown = useCallback((event: React.MouseEvent) => {
-    console.log('MouseControls: Mouse down event triggered');
-    if (!isEnabled || isAnimating) {
-      console.log('MouseControls: Interaction blocked - enabled:', isEnabled, 'animating:', isAnimating);
-      return;
-    }
+    if (!isEnabled) return;
     handlers.onMouseDown(event);
-  }, [isEnabled, isAnimating, handlers]);
+  }, [isEnabled, handlers]);
 
   const handleContainerMouseMove = useCallback((event: React.MouseEvent) => {
     if (!isEnabled) return;
@@ -257,14 +257,14 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   }, [isEnabled, handlers]);
 
   const handleContainerMouseUp = useCallback((event: React.MouseEvent) => {
-    console.log('MouseControls: Mouse up event triggered');
     if (!isEnabled) return;
     handlers.onMouseUp(event);
   }, [isEnabled, handlers]);
 
   const handleContainerMouseLeave = useCallback((event: React.MouseEvent) => {
+    if (!isEnabled) return;
     handlers.onMouseLeave(event);
-  }, [handlers]);
+  }, [isEnabled, handlers]);
 
   const handleContainerMouseEnter = useCallback((event: React.MouseEvent) => {
     if (!isEnabled) return;
@@ -286,6 +286,9 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     };
   }, [resetInteraction]);
 
+  // The mouse gesture handling is now done through React event handlers
+  // connected to the useMouseGestures hook above
+
   // Prevent context menu on right click
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
@@ -301,21 +304,26 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     cursor: isEnabled ? getCSSCursor(cursorState) : 'not-allowed',
     pointerEvents: isEnabled ? 'auto' : 'none',
     userSelect: 'none',
-    touchAction: 'none', // Prevent touch scrolling
+    WebkitUserSelect: 'none',
+    touchAction: 'none', // Prevent touch scrolling and zooming
+    WebkitTouchCallout: 'none', // Prevent iOS callout
+    zIndex: 999, // Ensure mouse overlay is above everything else
     ...style,
   };
 
-  // Debug: log component state
-  console.log('MouseControls render:', {
-    isEnabled,
-    hasCamera: !!camera,
-    hasScene: !!scene,
-    hasCubeGroup: !!cubeGroup,
-    cursorState
-  });
 
   return (
     <>
+      {/* Debug overlay - controlled by feature flags */}
+      <DebugOverlay
+        isDragging={isDragging}
+        currentGesture={currentGesture}
+        cursorState={cursorState}
+        hoveredFace={interactionState.hoveredFace}
+        selectedFace={interactionState.selectedFace}
+        isEnabled={enableDebugOverlay || isOverlayEnabled()}
+      />
+      
       {/* Rotation preview system */}
       <RotationPreviewManager
         scene={scene}
@@ -349,39 +357,6 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         aria-disabled={!isEnabled}
         data-testid="mouse-controls"
       >
-      {/* Debug information in development */}
-      {true && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 10,
-            left: 10,
-            background: 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            padding: '8px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            pointerEvents: 'none',
-            zIndex: 1000,
-          }}
-        >
-          <div>Hovered: {interactionState.hoveredFace || 'none'}</div>
-          <div>Selected: {interactionState.selectedFace || 'none'}</div>
-          <div>Animating: {isAnimating ? 'yes' : 'no'}</div>
-          <div>Cursor: {cursorState}</div>
-          {currentRotation && (
-            <div>
-              Rotation: {currentRotation.face} {currentRotation.direction}
-            </div>
-          )}
-          {enableInvalidMovePrevention && blockedMoves.length > 0 && (
-            <div style={{ color: '#ff6b6b', marginTop: '4px' }}>
-              <div>Blocked: {blockedMoves[blockedMoves.length - 1]?.reason}</div>
-            </div>
-          )}
-        </div>
-      )}
       </div>
     </>
   );

@@ -1,16 +1,17 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { 
   MousePosition, 
   DragGesture, 
   GestureRecognitionOptions,
   CursorState 
 } from '@rubiks-cube/shared/types';
+import { DebugLogger, MouseGestureDebugger } from '../utils/debugLogger';
 
 interface UseMouseGesturesOptions extends GestureRecognitionOptions {
-  onDragStart?: (gesture: DragGesture) => void;
-  onDragUpdate?: (gesture: DragGesture) => void;
-  onDragEnd?: (gesture: DragGesture) => void;
-  onHover?: (position: MousePosition) => void;
+  onDragStart?: (_gesture: DragGesture) => void;
+  onDragUpdate?: (_gesture: DragGesture) => void;
+  onDragEnd?: (_gesture: DragGesture) => void;
+  onHover?: (_position: MousePosition) => void;
   onLeave?: () => void;
 }
 
@@ -19,11 +20,11 @@ interface UseMouseGesturesReturn {
   currentGesture: DragGesture | null;
   cursorState: CursorState;
   handlers: {
-    onMouseDown: (event: React.MouseEvent) => void;
-    onMouseMove: (event: React.MouseEvent) => void;
-    onMouseUp: (event: React.MouseEvent) => void;
-    onMouseLeave: (event: React.MouseEvent) => void;
-    onMouseEnter: (event: React.MouseEvent) => void;
+    onMouseDown: (_event: React.MouseEvent) => void;
+    onMouseMove: (_event: React.MouseEvent) => void;
+    onMouseUp: (_event: React.MouseEvent) => void;
+    onMouseLeave: (_event: React.MouseEvent) => void;
+    onMouseEnter: (_event: React.MouseEvent) => void;
   };
 }
 
@@ -92,13 +93,16 @@ export function useMouseGestures(
 
   // Handle mouse down
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
-    console.log('useMouseGestures: Mouse down triggered');
+    DebugLogger.group('useMouseGestures', 'Mouse Down Event');
+    DebugLogger.info('useMouseGestures', 'Mouse down triggered');
+    MouseGestureDebugger.logEventDetails(event, 'MouseDown');
+    
     event.preventDefault();
     
     const position = getMousePosition(event);
     const startTime = performance.now();
     
-    console.log('useMouseGestures: Mouse position:', position);
+    DebugLogger.debug('useMouseGestures', 'Mouse position calculated', position);
     
     const initialGesture: DragGesture = {
       startPosition: position,
@@ -113,37 +117,54 @@ export function useMouseGestures(
     isMouseDownRef.current = true;
     setCursorState(CursorState.GRABBING);
     
-    console.log('useMouseGestures: Calling onDragStart with gesture:', initialGesture);
+    DebugLogger.debug('useMouseGestures', 'Gesture state updated', {
+      gestureRef: initialGesture,
+      isMouseDown: isMouseDownRef.current,
+      cursorState: CursorState.GRABBING,
+    });
+    
+    DebugLogger.info('useMouseGestures', 'Calling onDragStart callback');
+    console.log('🎮 useMouseGestures: Calling onDragStart with:', initialGesture);
     opts.onDragStart?.(initialGesture);
+    DebugLogger.groupEnd();
   }, [getMousePosition, opts]);
 
   // Handle mouse move
   const handleMouseMove = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
+    MouseGestureDebugger.logEventDetails(event, 'MouseMove');
     
     const currentPosition = getMousePosition(event);
+    DebugLogger.trace('useMouseGestures', 'Mouse move - position calculated', {
+      currentPosition,
+      isMouseDown: isMouseDownRef.current,
+    });
     
     // Handle hover when not dragging
     if (!isMouseDownRef.current) {
+      DebugLogger.trace('useMouseGestures', 'Mouse move - hover mode');
       setCursorState(CursorState.HOVER);
       opts.onHover?.(currentPosition);
       return;
     }
     
+    DebugLogger.debug('useMouseGestures', 'Mouse move - drag mode active');
+    
     // Handle drag update
     if (gestureRef.current) {
-      const { distance } = calculateDelta(
+      const { distance, deltaX, deltaY } = calculateDelta(
         gestureRef.current.startPosition, 
         currentPosition
       );
       
-      // Check if drag threshold is met
-      if (distance >= opts.minDragDistance) {
-        setIsDragging(true);
-        setCursorState(CursorState.ROTATING);
-      }
+      DebugLogger.trace('useMouseGestures', 'Drag delta calculated', {
+        distance,
+        deltaX,
+        deltaY,
+        threshold: opts.minDragDistance,
+      });
       
-      // Update gesture
+      // Update gesture first
       const updatedGesture = updateGesture(
         gestureRef.current.startPosition,
         currentPosition,
@@ -153,23 +174,54 @@ export function useMouseGestures(
       gestureRef.current = updatedGesture;
       setCurrentGesture(updatedGesture);
       
+      // Check if drag threshold is met
+      if (distance >= opts.minDragDistance) {
+        DebugLogger.info('useMouseGestures', 'Drag threshold met!', {
+          distance,
+          threshold: opts.minDragDistance,
+        });
+        setIsDragging(true);
+        setCursorState(CursorState.ROTATING);
+      }
+      
+      DebugLogger.debug('useMouseGestures', 'Gesture updated', {
+        distance,
+        deltaX: updatedGesture.delta.deltaX,
+        deltaY: updatedGesture.delta.deltaY,
+        duration: updatedGesture.duration,
+        isDragging,
+      });
+      
       // Check for timeout
       if (updatedGesture.duration > opts.maxDragTime) {
+        DebugLogger.warn('useMouseGestures', 'Gesture timeout exceeded', {
+          duration: updatedGesture.duration,
+          maxTime: opts.maxDragTime,
+        });
         handleMouseUp(event);
         return;
       }
       
+      // Always call onDragUpdate when mouse is down and moving
+      DebugLogger.trace('useMouseGestures', 'Calling onDragUpdate callback');
       opts.onDragUpdate?.(updatedGesture);
+    } else {
+      DebugLogger.warn('useMouseGestures', 'No gestureRef.current in drag mode!');
     }
   }, [
     getMousePosition, 
     calculateDelta, 
     updateGesture, 
-    opts
+    opts,
+    isDragging
   ]);
 
   // Handle mouse up
   const handleMouseUp = useCallback((event: React.MouseEvent) => {
+    DebugLogger.group('useMouseGestures', 'Mouse Up Event');
+    DebugLogger.info('useMouseGestures', 'Mouse up triggered');
+    MouseGestureDebugger.logEventDetails(event, 'MouseUp');
+    
     event.preventDefault();
     
     if (gestureRef.current) {
@@ -179,15 +231,27 @@ export function useMouseGestures(
         duration: performance.now() - gestureRef.current.startTime,
       };
       
+      DebugLogger.debug('useMouseGestures', 'Final gesture calculated', {
+        gesture: finalGesture,
+        wasActive: gestureRef.current.isActive,
+        totalDuration: finalGesture.duration,
+      });
+      
+      DebugLogger.info('useMouseGestures', 'Calling onDragEnd callback');
+      console.log('🎮 useMouseGestures: Calling onDragEnd with:', finalGesture);
       opts.onDragEnd?.(finalGesture);
+    } else {
+      DebugLogger.warn('useMouseGestures', 'Mouse up but no gestureRef.current!');
     }
     
     // Reset state
+    DebugLogger.debug('useMouseGestures', 'Resetting gesture state');
     gestureRef.current = null;
     isMouseDownRef.current = false;
     setIsDragging(false);
     setCurrentGesture(null);
     setCursorState(CursorState.HOVER);
+    DebugLogger.groupEnd();
   }, [opts]);
 
   // Handle mouse leave

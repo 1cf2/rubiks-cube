@@ -38,15 +38,105 @@ export class MouseInteractionHandler {
 
   private onPerformanceUpdate: ((metrics: PerformanceMetrics) => void) | undefined;
 
-  constructor(options: MouseInteractionHandlerOptions) {
+  private isDragging = false;
+  private dragStartPosition = { x: 0, y: 0 };
+  private onMouseDown?: (event: MouseEvent) => void;
+  private onMouseMove?: (event: MouseEvent) => void;
+  private onMouseUp?: (event: MouseEvent) => void;
+  private onMouseLeave?: (event: MouseEvent) => void;
+
+  constructor(options: MouseInteractionHandlerOptions & {
+    onMouseDown?: (event: MouseEvent) => void;
+    onMouseMove?: (event: MouseEvent) => void;
+    onMouseUp?: (event: MouseEvent) => void;
+    onMouseLeave?: (event: MouseEvent) => void;
+  }) {
     this.scene = options.scene;
     this.camera = options.camera;
     this.renderer = options.renderer;
     this.cubeGroup = options.cubeGroup;
     this.onPerformanceUpdate = options.onPerformanceUpdate;
+    this.onMouseDown = options.onMouseDown || (() => {});
+    this.onMouseMove = options.onMouseMove || (() => {});
+    this.onMouseUp = options.onMouseUp || (() => {});
+    this.onMouseLeave = options.onMouseLeave || (() => {}); 
 
     this.initializeFaceHighlights();
     this.startPerformanceMonitoring();
+    this.setupEventListeners();
+  }
+
+  /**
+   * Set up mouse event listeners
+   */
+  private setupEventListeners(): void {
+    const domElement = this.renderer.domElement;
+    
+    domElement.addEventListener('mousedown', this.handleMouseDown.bind(this));
+    domElement.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    domElement.addEventListener('mouseup', this.handleMouseUp.bind(this));
+    domElement.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
+    domElement.addEventListener('contextmenu', this.handleContextMenu.bind(this));
+  }
+
+  /**
+   * Handle mouse down events
+   */
+  private handleMouseDown(event: MouseEvent): void {
+    event.preventDefault();
+    
+    this.isDragging = true;
+    this.dragStartPosition = { x: event.clientX, y: event.clientY };
+    
+    const inputStart = performance.now();
+    this.onMouseDown?.(event);
+    this.updateInputLatency(performance.now() - inputStart);
+  }
+
+  /**
+   * Handle mouse move events
+   */
+  private handleMouseMove(event: MouseEvent): void {
+    if (this.isDragging) {
+      event.preventDefault();
+    }
+    
+    const inputStart = performance.now();
+    this.onMouseMove?.(event);
+    this.updateInputLatency(performance.now() - inputStart);
+  }
+
+  /**
+   * Handle mouse up events
+   */
+  private handleMouseUp(event: MouseEvent): void {
+    this.isDragging = false;
+    this.onMouseUp?.(event);
+  }
+
+  /**
+   * Handle mouse leave events
+   */
+  private handleMouseLeave(event: MouseEvent): void {
+    this.isDragging = false;
+    this.onMouseLeave?.(event);
+  }
+
+  /**
+   * Prevent context menu on right click
+   */
+  private handleContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  /**
+   * Get current drag state
+   */
+  getDragState(): { isDragging: boolean; startPosition: { x: number; y: number } } {
+    return {
+      isDragging: this.isDragging,
+      startPosition: this.dragStartPosition
+    };
   }
 
   /**
@@ -320,6 +410,15 @@ export class MouseInteractionHandler {
    * Dispose of resources
    */
   dispose(): void {
+    const domElement = this.renderer.domElement;
+    
+    // Remove event listeners
+    domElement.removeEventListener('mousedown', this.handleMouseDown.bind(this));
+    domElement.removeEventListener('mousemove', this.handleMouseMove.bind(this));
+    domElement.removeEventListener('mouseup', this.handleMouseUp.bind(this));
+    domElement.removeEventListener('mouseleave', this.handleMouseLeave.bind(this));
+    domElement.removeEventListener('contextmenu', this.handleContextMenu.bind(this));
+    
     // Dispose of highlight meshes and materials
     this.faceHighlights.forEach(highlight => {
       if (highlight.geometry) highlight.geometry.dispose();
@@ -335,5 +434,6 @@ export class MouseInteractionHandler {
 
     this.faceHighlights.clear();
     this.originalMaterials.clear();
+    this.isDragging = false;
   }
 }

@@ -33,7 +33,130 @@ export interface TouchFaceIntersection {
 export class TouchInteractionHandler {
   private static raycaster = new THREE.Raycaster();
   private static touchVector = new THREE.Vector2();
+  
+  private domElement: HTMLElement;
+  private isActive: boolean = false;
+  private currentTouches = new Map<number, { x: number; y: number; startTime: number }>();
+  private onTouchStart?: (event: TouchEvent) => void;
+  private onTouchMove?: (event: TouchEvent) => void;
+  private onTouchEnd?: (event: TouchEvent) => void;
 
+  constructor(
+    renderer: THREE.WebGLRenderer,
+    options: {
+      onTouchStart?: (event: TouchEvent) => void;
+      onTouchMove?: (event: TouchEvent) => void;
+      onTouchEnd?: (event: TouchEvent) => void;
+    } = {}
+  ) {
+    this.domElement = renderer.domElement;
+    this.onTouchStart = options.onTouchStart || (() => {});
+    this.onTouchMove = options.onTouchMove || (() => {});
+    this.onTouchEnd = options.onTouchEnd || (() => {});
+    
+    this.setupEventListeners();
+  }
+
+  /**
+   * Set up touch event listeners with proper configuration
+   */
+  private setupEventListeners(): void {
+    // Use passive: false to allow preventDefault() to work
+    this.domElement.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+    this.domElement.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+    this.domElement.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+    this.domElement.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false });
+  }
+
+  /**
+   * Handle touch start events
+   */
+  private handleTouchStart(event: TouchEvent): void {
+    event.preventDefault();
+    
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i];
+      if (touch) {
+        this.currentTouches.set(touch.identifier, {
+          x: touch.clientX,
+          y: touch.clientY,
+          startTime: performance.now()
+        });
+      }
+    }
+    
+    this.isActive = true;
+    this.onTouchStart?.(event);
+  }
+
+  /**
+   * Handle touch move events
+   */
+  private handleTouchMove(event: TouchEvent): void {
+    event.preventDefault();
+    
+    if (!this.isActive) return;
+    
+    // Update touch positions
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i];
+      if (touch) {
+        const existing = this.currentTouches.get(touch.identifier);
+        if (existing) {
+          this.currentTouches.set(touch.identifier, {
+            ...existing,
+            x: touch.clientX,
+            y: touch.clientY
+          });
+        }
+      }
+    }
+    
+    this.onTouchMove?.(event);
+  }
+
+  /**
+   * Handle touch end events
+   */
+  private handleTouchEnd(event: TouchEvent): void {
+    // Remove ended touches
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i];
+      if (touch) {
+        this.currentTouches.delete(touch.identifier);
+      }
+    }
+    
+    // If no touches remain, deactivate
+    if (this.currentTouches.size === 0) {
+      this.isActive = false;
+    }
+    
+    this.onTouchEnd?.(event);
+  }
+
+  /**
+   * Get current touch state
+   */
+  getTouchState(): { isActive: boolean; touchCount: number } {
+    return {
+      isActive: this.isActive,
+      touchCount: this.currentTouches.size
+    };
+  }
+
+  /**
+   * Remove event listeners and cleanup
+   */
+  dispose(): void {
+    this.domElement.removeEventListener('touchstart', this.handleTouchStart.bind(this));
+    this.domElement.removeEventListener('touchmove', this.handleTouchMove.bind(this));
+    this.domElement.removeEventListener('touchend', this.handleTouchEnd.bind(this));
+    this.domElement.removeEventListener('touchcancel', this.handleTouchEnd.bind(this));
+    
+    this.currentTouches.clear();
+    this.isActive = false;
+  }
 
   /**
    * Performs raycasting for touch input to detect cube face intersections
@@ -294,9 +417,9 @@ export class TouchInteractionHandler {
   }
 
   /**
-   * Disposes of touch interaction handler resources
+   * Static method to dispose of shared resources
    */
-  static dispose(): void {
+  static disposeStatic(): void {
     this.touchVector.set(0, 0);
   }
 }

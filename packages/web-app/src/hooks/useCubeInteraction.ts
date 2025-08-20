@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, no-console */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { 
@@ -13,27 +14,28 @@ import {
   CursorState,
 } from '@rubiks-cube/shared/types';
 import { RaycastingUtils } from '../utils/raycasting';
+import { DebugLogger, MouseGestureDebugger } from '../utils/debugLogger';
 
 interface UseCubeInteractionOptions {
   camera: THREE.Camera | null;
   scene: THREE.Scene | null;
   animationOptions?: Partial<AnimationOptions>;
-  onFaceHover?: (face: FacePosition | null) => void;
-  onFaceSelect?: (face: FacePosition) => void;
-  onRotationStart?: (command: RotationCommand) => void;
-  onRotationUpdate?: (command: RotationCommand) => void;
-  onRotationComplete?: (command: RotationCommand, move: Move) => void;
-  onError?: (error: CubeError, message?: string) => void;
+  onFaceHover?: (_face: FacePosition | null) => void;
+  onFaceSelect?: (_face: FacePosition) => void;
+  onRotationStart?: (_command: RotationCommand) => void;
+  onRotationUpdate?: (_command: RotationCommand) => void;
+  onRotationComplete?: (_command: RotationCommand, _move: Move) => void;
+  onError?: (_error: CubeError, _message?: string) => void;
 }
 
 interface UseCubeInteractionReturn {
   interactionState: MouseInteractionState;
   currentRotation: RotationCommand | null;
   isAnimating: boolean;
-  handleMouseHover: (position: MousePosition) => void;
-  handleDragStart: (gesture: DragGesture) => void;
-  handleDragUpdate: (gesture: DragGesture) => void;
-  handleDragEnd: (gesture: DragGesture) => void;
+  handleMouseHover: (_position: MousePosition) => void;
+  handleDragStart: (_gesture: DragGesture) => void;
+  handleDragUpdate: (_gesture: DragGesture) => void;
+  handleDragEnd: (_gesture: DragGesture) => void;
   handleMouseLeave: () => void;
   resetInteraction: () => void;
 }
@@ -151,12 +153,22 @@ export function useCubeInteraction(
 
   // Handle drag start
   const handleDragStart = useCallback((gesture: DragGesture) => {
-    console.log('useCubeInteraction: Drag start triggered', gesture);
+    DebugLogger.group('useCubeInteraction', 'Drag Start Handler');
+    DebugLogger.info('useCubeInteraction', 'Drag start triggered', gesture);
     
     if (!camera || !scene || isAnimating) {
-      console.log('useCubeInteraction: Drag start blocked - camera:', !!camera, 'scene:', !!scene, 'animating:', isAnimating);
+      DebugLogger.warn('useCubeInteraction', 'Drag start blocked', {
+        hasCamera: !!camera,
+        hasScene: !!scene,
+        isAnimating,
+      });
+      DebugLogger.groupEnd();
       return;
     }
+
+    DebugLogger.debug('useCubeInteraction', 'Performing raycast', {
+      startPosition: gesture.startPosition,
+    });
 
     const raycastResult = RaycastingUtils.raycastCubeFaces({
       camera,
@@ -165,16 +177,21 @@ export function useCubeInteraction(
       recursive: true,
     });
 
-    console.log('useCubeInteraction: Raycast result for drag start:', raycastResult);
+    MouseGestureDebugger.logRaycastResult(raycastResult, 'DragStart');
 
     if (!raycastResult.success || !raycastResult.data) {
-      console.log('useCubeInteraction: No face detected at drag start');
+      DebugLogger.error('useCubeInteraction', 'No face detected at drag start', raycastResult);
       callbacks.onError?.(CubeError.RAYCASTING_FAILED, 'No face detected at drag start');
+      DebugLogger.groupEnd();
       return;
     }
 
     const selectedFace = raycastResult.data.facePosition;
-    console.log('useCubeInteraction: Selected face:', selectedFace);
+    console.log('✅ useCubeInteraction: Face selected:', selectedFace);
+    DebugLogger.info('useCubeInteraction', 'Face selected successfully', {
+      selectedFace,
+      raycastPoint: raycastResult.data.point,
+    });
     
     setInteractionState(prev => ({
       ...prev,
@@ -194,9 +211,34 @@ export function useCubeInteraction(
 
   // Handle drag update
   const handleDragUpdate = useCallback((gesture: DragGesture) => {
-    if (!camera || !scene || !rotationStartRef.current || isAnimating) return;
+    DebugLogger.debug('useCubeInteraction', 'handleDragUpdate called', {
+      gesture,
+      hasCamera: !!camera,
+      hasScene: !!scene,
+      hasRotationStart: !!rotationStartRef.current,
+      isAnimating,
+    });
+    
+    if (!camera || !scene || !rotationStartRef.current || isAnimating) {
+      DebugLogger.warn('useCubeInteraction', 'Drag update blocked', {
+        hasCamera: !!camera,
+        hasScene: !!scene,
+        hasRotationStart: !!rotationStartRef.current,
+        isAnimating,
+      });
+      return;
+    }
 
     const { face } = rotationStartRef.current;
+    
+    // Check if we've moved enough to start a rotation
+    const { deltaX, deltaY } = gesture.delta;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    if (distance < 5) {
+      // Not enough movement yet
+      return;
+    }
     
     // Calculate rotation direction
     const directionResult = RaycastingUtils.calculateRotationDirection(
@@ -207,6 +249,7 @@ export function useCubeInteraction(
     );
 
     if (!directionResult.success) {
+      DebugLogger.error('useCubeInteraction', 'Failed to calculate rotation direction', directionResult);
       callbacks.onError?.(directionResult.error, directionResult.message);
       return;
     }
@@ -223,6 +266,7 @@ export function useCubeInteraction(
       isComplete: false,
     };
 
+    DebugLogger.debug('useCubeInteraction', 'Rotation command created', rotationCommand);
     setCurrentRotation(rotationCommand);
     setInteractionState(prev => ({
       ...prev,
@@ -232,44 +276,6 @@ export function useCubeInteraction(
 
     callbacks.onRotationUpdate?.(rotationCommand);
   }, [camera, scene, isAnimating, calculateRotationAngle, snapToGrid, callbacks]);
-
-  // Handle drag end
-  const handleDragEnd = useCallback((_gesture: DragGesture) => {
-    if (!currentRotation || !rotationStartRef.current) {
-      resetInteraction();
-      return;
-    }
-
-    const finalRotation: RotationCommand = {
-      ...currentRotation,
-      isComplete: true,
-      angle: currentRotation.targetAngle,
-    };
-
-    const move = createMove(finalRotation.face, finalRotation.direction);
-    
-    setIsAnimating(true);
-    callbacks.onRotationStart?.(finalRotation);
-
-    // Simulate animation completion after duration
-    setTimeout(() => {
-      setIsAnimating(false);
-      callbacks.onRotationComplete?.(finalRotation, move);
-      resetInteraction();
-    }, animOpts.duration);
-
-  }, [currentRotation, createMove, animOpts.duration, callbacks]);
-
-  // Handle mouse leave
-  const handleMouseLeave = useCallback(() => {
-    setInteractionState(prev => ({
-      ...prev,
-      hoveredFace: null,
-      lastInteraction: performance.now(),
-    }));
-
-    lastHoveredFaceRef.current = null;
-  }, []);
 
   // Reset interaction state
   const resetInteraction = useCallback(() => {
@@ -284,6 +290,123 @@ export function useCubeInteraction(
 
     setCurrentRotation(null);
     rotationStartRef.current = null;
+    lastHoveredFaceRef.current = null;
+  }, []);
+
+  // Handle drag end
+  const handleDragEnd = useCallback((gesture: DragGesture) => {
+    console.log('🔄 useCubeInteraction: handleDragEnd called!', {
+      gesture,
+      currentRotation,
+      rotationStartRef: rotationStartRef.current,
+    });
+    DebugLogger.group('useCubeInteraction', 'Drag End Handler');
+    DebugLogger.info('useCubeInteraction', 'Drag end triggered', {
+      gesture,
+      currentRotation,
+      rotationStartRef: rotationStartRef.current,
+    });
+    
+    // Calculate drag distance to determine if it was a meaningful drag
+    const { deltaX, deltaY } = gesture.delta;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const minimumDragDistance = 10; // Minimum pixels for a rotation
+    
+    DebugLogger.debug('useCubeInteraction', 'Drag distance calculated', {
+      distance,
+      minimumRequired: minimumDragDistance,
+      duration: gesture.duration,
+    });
+    
+    // If we have a face selection but no currentRotation and sufficient drag, create one
+    if (rotationStartRef.current && !currentRotation && distance >= minimumDragDistance && gesture.duration > 50) {
+      DebugLogger.info('useCubeInteraction', 'Creating rotation from drag end');
+      const { face } = rotationStartRef.current;
+      
+      // Use RaycastingUtils to determine proper direction
+      const directionResult = RaycastingUtils.calculateRotationDirection(
+        gesture.startPosition,
+        gesture.currentPosition,
+        face,
+        camera || new THREE.PerspectiveCamera()
+      );
+      
+      let direction = RotationDirection.CLOCKWISE;
+      if (directionResult.success && directionResult.data) {
+        direction = directionResult.data === 'clockwise' 
+          ? RotationDirection.CLOCKWISE 
+          : RotationDirection.COUNTERCLOCKWISE;
+      } else {
+        // Fallback to simple direction calculation
+        direction = Math.abs(deltaX) > Math.abs(deltaY) 
+          ? (deltaX > 0 ? RotationDirection.CLOCKWISE : RotationDirection.COUNTERCLOCKWISE)
+          : (deltaY > 0 ? RotationDirection.COUNTERCLOCKWISE : RotationDirection.CLOCKWISE);
+      }
+        
+      const finalRotation: RotationCommand = {
+        face,
+        direction,
+        angle: Math.PI / 2,
+        targetAngle: Math.PI / 2,
+        isComplete: true,
+      };
+      
+      const move = createMove(finalRotation.face, finalRotation.direction);
+      
+      DebugLogger.info('useCubeInteraction', 'Starting rotation animation', finalRotation);
+      console.log('🚀 useCubeInteraction: Calling onRotationStart with:', finalRotation);
+      setIsAnimating(true);
+      callbacks.onRotationStart?.(finalRotation);
+
+      setTimeout(() => {
+        DebugLogger.info('useCubeInteraction', 'Animation completed');
+        setIsAnimating(false);
+        callbacks.onRotationComplete?.(finalRotation, move);
+        resetInteraction();
+      }, animOpts.duration);
+      
+      DebugLogger.groupEnd();
+      return;
+    }
+    
+    // If we have a current rotation from drag updates, finalize it
+    if (currentRotation && rotationStartRef.current) {
+      const finalRotation: RotationCommand = {
+        ...currentRotation,
+        isComplete: true,
+        angle: currentRotation.targetAngle,
+      };
+
+      const move = createMove(finalRotation.face, finalRotation.direction);
+      
+      DebugLogger.info('useCubeInteraction', 'Finalizing existing rotation', finalRotation);
+      console.log('🚀 useCubeInteraction: Finalizing rotation - calling onRotationStart with:', finalRotation);
+      setIsAnimating(true);
+      callbacks.onRotationStart?.(finalRotation);
+
+      setTimeout(() => {
+        DebugLogger.info('useCubeInteraction', 'Rotation finalization completed');
+        setIsAnimating(false);
+        callbacks.onRotationComplete?.(finalRotation, move);
+        resetInteraction();
+      }, animOpts.duration);
+    } else {
+      // No meaningful rotation, just reset
+      DebugLogger.info('useCubeInteraction', 'No meaningful rotation detected, resetting');
+      resetInteraction();
+    }
+    
+    DebugLogger.groupEnd();
+  }, [currentRotation, createMove, animOpts.duration, callbacks, camera, resetInteraction]);
+
+  // Handle mouse leave
+  const handleMouseLeave = useCallback(() => {
+    setInteractionState(prev => ({
+      ...prev,
+      hoveredFace: null,
+      lastInteraction: performance.now(),
+    }));
+
     lastHoveredFaceRef.current = null;
   }, []);
 

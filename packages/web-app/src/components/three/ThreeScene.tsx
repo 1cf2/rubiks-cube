@@ -137,6 +137,7 @@ export const ThreeSceneProvider: React.FC<ThreeSceneProps> = ({ children }) => {
       setLoadingMessage('Preparing canvas...');
       
       // Append renderer to DOM
+      renderer.domElement.style.pointerEvents = 'none'; // Allow events to pass through to overlays
       mountRef.current.appendChild(renderer.domElement);
 
       // Enhanced responsive resize handler
