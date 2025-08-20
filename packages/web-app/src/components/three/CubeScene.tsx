@@ -202,7 +202,7 @@ const CubeSceneContent: React.FC = () => {
         cubeGroup={cubeGroup}
         isEnabled={true}
         enableRotationPreview={true}
-        enableDebugOverlay={false}
+        enableDebugOverlay={true}
         enableCompletionFeedback={true}
         enableInvalidMovePrevention={true}
         allowConcurrentAnimations={false}

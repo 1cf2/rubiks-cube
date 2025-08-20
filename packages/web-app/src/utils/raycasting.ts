@@ -84,20 +84,7 @@ export class RaycastingUtils {
     try {
       const { camera, scene, mouse: mousePos } = options;
       
-      window.console.group('🔍 RaycastingUtils: Starting comprehensive raycast analysis');
-      window.console.log('🔍 RaycastingUtils: Input parameters', {
-        hasCamera: !!camera,
-        hasScene: !!scene,
-        mousePos,
-        sceneChildrenCount: scene?.children.length || 0,
-        cameraType: camera?.type,
-        cameraPosition: camera ? [camera.position.x, camera.position.y, camera.position.z] : null,
-        sceneChildren: scene?.children.map((child: THREE.Object3D) => ({ name: child.name || 'unnamed', type: child.type })) || []
-      });
-      
       if (!camera || !scene) {
-        window.console.error('❌ RaycastingUtils: Missing camera or scene');
-        window.console.groupEnd();
         return {
           success: false,
           error: CubeError.RAYCASTING_FAILED,
@@ -110,18 +97,7 @@ export class RaycastingUtils {
       const container = document.querySelector('[data-testid="mouse-controls"]') as HTMLElement;
       const target = canvas || container;
       
-      window.console.log('🔍 RaycastingUtils: Element detection', {
-        hasCanvas: !!canvas,
-        canvasRect: canvas?.getBoundingClientRect(),
-        hasContainer: !!container,
-        containerRect: container?.getBoundingClientRect(),
-        selectedTarget: target?.tagName,
-        targetRect: target?.getBoundingClientRect()
-      });
-      
       if (!target) {
-        window.console.error('❌ RaycastingUtils: No canvas or container found');
-        window.console.groupEnd();
         return {
           success: false,
           error: CubeError.RAYCASTING_FAILED,
@@ -133,57 +109,21 @@ export class RaycastingUtils {
       this.mouse = canvas 
         ? RaycastingUtils.screenToNDC(mousePos, canvas as HTMLCanvasElement)
         : RaycastingUtils.screenToNDCFromElement(mousePos, target);
-      window.console.log('🔍 RaycastingUtils: NDC conversion', {
-        originalMouse: mousePos,
-        targetBounds: target.getBoundingClientRect(),
-        ndcResult: { x: this.mouse.x, y: this.mouse.y },
-        conversionMethod: canvas ? 'canvas' : 'element'
-      });
       
       // Set up raycaster
       this.raycaster.setFromCamera(this.mouse, camera);
 
       // Find intersections with cube meshes
       const intersects = this.raycaster.intersectObjects(scene.children, options.recursive);
-      window.console.log('🔍 RaycastingUtils: Raycaster intersections', {
-        totalIntersects: intersects.length,
-        rayOrigin: this.raycaster.ray.origin.toArray(),
-        rayDirection: this.raycaster.ray.direction.toArray(),
-        intersectDetails: intersects.map((i, idx) => ({
-          index: idx,
-          name: i.object.name || 'unnamed',
-          distance: i.distance,
-          point: i.point.toArray(),
-          faceIndex: i.faceIndex,
-          objectType: i.object.type
-        }))
-      });
 
       // Filter for cube face meshes only
       const cubeIntersects = intersects.filter(intersect => {
         const mesh = intersect.object as THREE.Mesh;
         const facePosition = this.getFacePosition(mesh);
-        const isValidCubeFace = mesh.isMesh && facePosition !== null;
-        window.console.log('🔍 RaycastingUtils: Mesh validation', {
-          name: mesh.name || 'unnamed',
-          isMesh: mesh.isMesh,
-          facePosition,
-          isValidCubeFace,
-          meshType: mesh.type,
-          visible: mesh.visible,
-          matrixAutoUpdate: mesh.matrixAutoUpdate
-        });
-        return isValidCubeFace;
+        return mesh.isMesh && facePosition !== null;
       });
 
-      window.console.log('🔍 RaycastingUtils: Cube face intersections', {
-        validCubeIntersects: cubeIntersects.length,
-        cubeIntersectNames: cubeIntersects.map(i => i.object.name || 'unnamed')
-      });
-      
       if (cubeIntersects.length === 0) {
-        window.console.warn('⚠️ RaycastingUtils: No valid cube face intersections found');
-        window.console.groupEnd();
         return { success: true, data: null };
       }
 
@@ -207,24 +147,9 @@ export class RaycastingUtils {
         distance: closest.distance,
       };
 
-      window.console.log('✅ RaycastingUtils: Successfully detected face', {
-        facePosition,
-        intersectionPoint: intersection.point,
-        normal: intersection.normal,
-        distance: intersection.distance,
-        meshName: mesh.name || 'unnamed'
-      });
-      window.console.groupEnd();
-
       return { success: true, data: intersection };
 
     } catch (error) {
-      window.console.error('❌ RaycastingUtils: Raycasting failed with error', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown raycasting error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      window.console.groupEnd();
       return {
         success: false,
         error: CubeError.RAYCASTING_FAILED,

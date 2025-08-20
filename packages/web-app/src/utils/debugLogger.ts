@@ -122,15 +122,60 @@ export class DebugLogger {
   }
 }
 
+// UUID generation for gesture tracking
+function generateGestureId(): string {
+  return 'gesture_' + Math.random().toString(36).substr(2, 8);
+}
+
 // Mouse gesture specific debug helpers
 export class MouseGestureDebugger {
-  private static gestureChain: string[] = [];
-  private static gestureStartTime: number = 0;
+  private static activeGestures = new Map<string, {
+    id: string;
+    startTime: number;
+    chain: Array<{step: string, timestamp: number, data?: any}>;
+  }>();
   
   private static isGestureLoggingEnabled(): boolean {
     // Import inside method to avoid circular dependency
     const { isGestureLoggingEnabled } = require('./featureFlags');
     return isGestureLoggingEnabled();
+  }
+
+  static startGestureTracking(context: string): string {
+    const gestureId = generateGestureId();
+    const startTime = performance.now();
+    
+    this.activeGestures.set(gestureId, {
+      id: gestureId,
+      startTime,
+      chain: [{ step: `START:${context}`, timestamp: 0 }]
+    });
+    
+    window.console.log(`🔍 [${gestureId}] GESTURE START: ${context}`);
+    return gestureId;
+  }
+
+  static trackGestureStep(gestureId: string, step: string, data?: any) {
+    const gesture = this.activeGestures.get(gestureId);
+    if (!gesture) return;
+    
+    const timestamp = performance.now() - gesture.startTime;
+    gesture.chain.push({ step, timestamp, data });
+    
+    window.console.log(`🔍 [${gestureId}] ${step} (+${timestamp.toFixed(1)}ms)`, data || '');
+  }
+
+  static endGestureTracking(gestureId: string, result: 'SUCCESS' | 'FAILED', reason?: string) {
+    const gesture = this.activeGestures.get(gestureId);
+    if (!gesture) return;
+    
+    const totalTime = performance.now() - gesture.startTime;
+    const icon = result === 'SUCCESS' ? '✅' : '❌';
+    
+    window.console.log(`${icon} [${gestureId}] GESTURE ${result} (${totalTime.toFixed(1)}ms)${reason ? ': ' + reason : ''}`);
+    window.console.log(`📊 [${gestureId}] Chain:`, gesture.chain.map(c => `${c.step}(+${c.timestamp.toFixed(1)}ms)`).join(' → '));
+    
+    this.activeGestures.delete(gestureId);
   }
 
   static logEventDetails(event: React.MouseEvent<Element>, context: string) {
@@ -170,27 +215,17 @@ export class MouseGestureDebugger {
     }
   }
 
-  static startGestureChain(initiator: string) {
-    this.gestureChain = [initiator];
-    this.gestureStartTime = performance.now();
-    window.console.group(`🔗 Gesture Chain Started by: ${initiator}`);
+  // Legacy methods for backward compatibility - now no-ops to reduce noise
+  static startGestureChain(_initiator: string) {
+    // No-op to reduce noise
   }
 
-  static addToGestureChain(component: string, action: string, data?: any) {
-    const timestamp = performance.now() - this.gestureStartTime;
-    const entry = `${component}:${action} (+${timestamp.toFixed(1)}ms)`;
-    this.gestureChain.push(entry);
-    
-    window.console.log(`🔗 Chain Step: ${entry}`, data || '');
+  static addToGestureChain(_component: string, __action: string, ___data?: any) {
+    // No-op to reduce noise
   }
 
-  static endGestureChain(result: string) {
-    const totalTime = performance.now() - this.gestureStartTime;
-    window.console.log(`🔗 Gesture Chain Complete: ${result} (Total: ${totalTime.toFixed(1)}ms)`);
-    window.console.log(`🔗 Full Chain:`, this.gestureChain);
-    window.console.groupEnd();
-    this.gestureChain = [];
-    this.gestureStartTime = 0;
+  static endGestureChain(_result: string) {
+    // No-op to reduce noise
   }
 
   static logDragGestureProgression(gesture: any, stage: 'start' | 'update' | 'end') {
