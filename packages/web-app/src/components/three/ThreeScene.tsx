@@ -137,7 +137,10 @@ export const ThreeSceneProvider: React.FC<ThreeSceneProps> = ({ children }) => {
       setLoadingMessage('Preparing canvas...');
       
       // Append renderer to DOM
-      renderer.domElement.style.pointerEvents = 'none'; // Allow events to pass through to overlays
+      window.console.log('🎨 ThreeScene: Setting up canvas with pointerEvents:', renderer.domElement.style.pointerEvents);
+      // Canvas should not capture pointer events - MouseControls overlay will handle all interaction
+      renderer.domElement.style.pointerEvents = 'none';
+      window.console.log('🎨 ThreeScene: Canvas pointerEvents after setting:', renderer.domElement.style.pointerEvents);
       mountRef.current.appendChild(renderer.domElement);
 
       // Enhanced responsive resize handler

@@ -73,7 +73,7 @@ export class ErrorTracker {
     this.setupConsoleErrorCapture();
 
     this.isInitialized = true;
-    console.log('Error tracking initialized');
+    window.console.log('Error tracking initialized');
   }
 
   /**
@@ -267,7 +267,7 @@ export class ErrorTracker {
    */
   private setupThreeJSErrorHandling(): void {
     // This would be called from Three.js components to set up specific error handling
-    console.log('Three.js error handling setup');
+    window.console.log('Three.js error handling setup');
   }
 
   /**

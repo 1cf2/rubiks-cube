@@ -14,7 +14,7 @@ module.exports = merge(common, {
     publicPath: '/',
   },
 
-  devtool: 'eval-source-map',
+  devtool: 'inline-source-map',
 
   devServer: {
     static: [
@@ -64,6 +64,14 @@ module.exports = merge(common, {
   optimization: {
     removeAvailableModules: false,
     removeEmptyChunks: false,
-    splitChunks: false,
+    minimize: false,
+    splitChunks: {
+      chunks: 'all',
+      minSize: 0,
+      cacheGroups: {
+        default: false,
+        vendors: false,
+      },
+    },
   },
 });

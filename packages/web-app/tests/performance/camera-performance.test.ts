@@ -225,7 +225,7 @@ describe('Camera Performance Tests', () => {
       const maxFrameTime = Math.max(...frameTimes);
       expect(maxFrameTime).toBeLessThanOrEqual(20);
       
-      console.log(`Desktop Orbit Performance: ${averageFps.toFixed(1)} fps average, ${maxFrameTime.toFixed(1)}ms max frame time`);
+      window.console.log(`Desktop Orbit Performance: ${averageFps.toFixed(1)} fps average, ${maxFrameTime.toFixed(1)}ms max frame time`);
     });
 
     test('should maintain 30fps during continuous orbit operations on mobile', () => {
@@ -252,7 +252,7 @@ describe('Camera Performance Tests', () => {
       const maxFrameTime = Math.max(...frameTimes);
       expect(maxFrameTime).toBeLessThanOrEqual(40);
       
-      console.log(`Mobile Orbit Performance: ${averageFps.toFixed(1)} fps average, ${maxFrameTime.toFixed(1)}ms max frame time`);
+      window.console.log(`Mobile Orbit Performance: ${averageFps.toFixed(1)} fps average, ${maxFrameTime.toFixed(1)}ms max frame time`);
     });
 
     test('should maintain performance during rapid zoom operations', () => {
@@ -277,7 +277,7 @@ describe('Camera Performance Tests', () => {
       const maxFrameTime = Math.max(...frameTimes);
       expect(maxFrameTime).toBeLessThanOrEqual(18);
       
-      console.log(`Zoom Performance: ${averageFps.toFixed(1)} fps average, ${maxFrameTime.toFixed(1)}ms max frame time`);
+      window.console.log(`Zoom Performance: ${averageFps.toFixed(1)} fps average, ${maxFrameTime.toFixed(1)}ms max frame time`);
     });
 
     test('should handle combined orbit and zoom operations efficiently', () => {
@@ -305,7 +305,7 @@ describe('Camera Performance Tests', () => {
       // Should maintain performance with mixed operations
       expect(averageFps).toBeGreaterThanOrEqual(45);
       
-      console.log(`Mixed Operations Performance: ${averageFps.toFixed(1)} fps average`);
+      window.console.log(`Mixed Operations Performance: ${averageFps.toFixed(1)} fps average`);
     });
   });
 
@@ -336,7 +336,7 @@ describe('Camera Performance Tests', () => {
       expect(averageLatency).toBeLessThanOrEqual(16);
       expect(maxLatency).toBeLessThanOrEqual(25); // Allow some variance for worst case
       
-      console.log(`Desktop Input Latency: ${averageLatency.toFixed(1)}ms average, ${maxLatency.toFixed(1)}ms max`);
+      window.console.log(`Desktop Input Latency: ${averageLatency.toFixed(1)}ms average, ${maxLatency.toFixed(1)}ms max`);
     });
 
     test('should meet input latency requirements for mobile', () => {
@@ -368,7 +368,7 @@ describe('Camera Performance Tests', () => {
       expect(averageLatency).toBeLessThanOrEqual(32);
       expect(maxLatency).toBeLessThanOrEqual(50); // Allow more variance for mobile
       
-      console.log(`Mobile Input Latency: ${averageLatency.toFixed(1)}ms average, ${maxLatency.toFixed(1)}ms max`);
+      window.console.log(`Mobile Input Latency: ${averageLatency.toFixed(1)}ms average, ${maxLatency.toFixed(1)}ms max`);
     });
 
     test('should track and report input processor latency', () => {
@@ -403,7 +403,7 @@ describe('Camera Performance Tests', () => {
       const memoryGrowth = finalMemory - initialMemory;
       expect(memoryGrowth).toBeLessThanOrEqual(1.0); // Allow max 1MB growth
       
-      console.log(`Memory usage: ${initialMemory}MB -> ${finalMemory}MB (growth: ${memoryGrowth.toFixed(2)}MB)`);
+      window.console.log(`Memory usage: ${initialMemory}MB -> ${finalMemory}MB (growth: ${memoryGrowth.toFixed(2)}MB)`);
     });
 
     test('should efficiently handle animation state transitions', () => {
@@ -430,7 +430,7 @@ describe('Camera Performance Tests', () => {
       // Animation transitions should be fast
       expect(averageAnimationTime).toBeLessThanOrEqual(10);
       
-      console.log(`Animation transition time: ${averageAnimationTime.toFixed(1)}ms average`);
+      window.console.log(`Animation transition time: ${averageAnimationTime.toFixed(1)}ms average`);
     });
   });
 
@@ -465,7 +465,7 @@ describe('Camera Performance Tests', () => {
       // Auto-rotation should be very lightweight
       expect(averageFrameTime).toBeLessThanOrEqual(2); // Should be under 2ms per frame
       
-      console.log(`Auto-rotation performance: ${averageFrameTime.toFixed(2)}ms average per frame`);
+      window.console.log(`Auto-rotation performance: ${averageFrameTime.toFixed(2)}ms average per frame`);
     });
   });
 
@@ -498,7 +498,7 @@ describe('Camera Performance Tests', () => {
       // Each operation should still be fast even in bursts
       expect(timePerOperation).toBeLessThanOrEqual(3);
       
-      console.log(`Burst performance: ${timePerOperation.toFixed(2)}ms per operation in ${burstSize}-operation bursts`);
+      window.console.log(`Burst performance: ${timePerOperation.toFixed(2)}ms per operation in ${burstSize}-operation bursts`);
     });
 
     test('should maintain performance under resource constraints', () => {
@@ -525,7 +525,7 @@ describe('Camera Performance Tests', () => {
       // Should still maintain reasonable performance
       expect(averageFps).toBeGreaterThanOrEqual(25);
       
-      console.log(`Constrained performance: ${averageFps.toFixed(1)} fps average`);
+      window.console.log(`Constrained performance: ${averageFps.toFixed(1)} fps average`);
       
       // Restore original implementation
       mockOrbitManager.orbit = originalOrbit;
@@ -551,7 +551,7 @@ describe('Camera Performance Tests', () => {
       expect(metrics.inputLatency).toBeGreaterThan(0);
       expect(metrics.memoryUsage).toBeGreaterThan(0);
       
-      console.log('Performance Metrics:', {
+      window.console.log('Performance Metrics:', {
         frameRate: `${metrics.frameRate} fps`,
         inputLatency: `${metrics.inputLatency}ms`,
         animationDuration: `${metrics.animationDuration}ms`,

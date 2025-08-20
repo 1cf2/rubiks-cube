@@ -74,9 +74,9 @@ export function useCameraControls(
       // Try to restore saved camera state
       restoreCameraState();
 
-      console.log('Camera controls initialized');
+      window.console.log('Camera controls initialized');
     } catch (error) {
-      console.error('Failed to initialize camera controls:', error);
+      window.console.error('Failed to initialize camera controls:', error);
     }
 
     return () => {
@@ -304,7 +304,7 @@ export function useCameraControls(
       if (result.success) {
         const newState = orbitManagerRef.current.getCameraState();
         setCameraState(newState);
-        console.log('Camera state restored from local storage');
+        window.console.log('Camera state restored from local storage');
       }
     } catch (error) {
       console.warn('Failed to restore camera state:', error);

@@ -50,7 +50,7 @@ export class PerformanceMonitor {
       this.collectMemoryMetrics();
     }, 5000); // Every 5 seconds
 
-    console.log('Performance monitoring started');
+    window.console.log('Performance monitoring started');
   }
 
   /**
@@ -64,7 +64,7 @@ export class PerformanceMonitor {
       this.monitoringInterval = undefined;
     }
 
-    console.log('Performance monitoring stopped');
+    window.console.log('Performance monitoring stopped');
   }
 
   /**
@@ -237,7 +237,7 @@ export class PerformanceMonitor {
     if (process.env['NODE_ENV'] === 'development') {
       // Only log in development to avoid spam
       if (metric.frameRate > 0) {
-        console.log(`Performance: FPS: ${metric.frameRate.toFixed(1)}, Memory: ${metric.memoryUsage.toFixed(1)}MB`);
+        window.console.log(`Performance: FPS: ${metric.frameRate.toFixed(1)}, Memory: ${metric.memoryUsage.toFixed(1)}MB`);
       }
     }
 

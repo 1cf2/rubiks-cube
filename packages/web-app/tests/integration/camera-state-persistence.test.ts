@@ -197,7 +197,7 @@ describe('Camera State Persistence Tests', () => {
       // Should be valid JSON
       expect(() => JSON.parse(serialized)).not.toThrow();
       
-      console.log('Serialized camera state:', serialized);
+      window.console.log('Serialized camera state:', serialized);
     });
 
     test('should deserialize camera state correctly', () => {
@@ -266,7 +266,7 @@ describe('Camera State Persistence Tests', () => {
       expect(storedData).toBeDefined();
       expect(() => JSON.parse(storedData!)).not.toThrow();
       
-      console.log('Stored camera state:', storedData);
+      window.console.log('Stored camera state:', storedData);
     });
 
     test('should not save camera state when persistence is disabled', () => {
@@ -600,7 +600,7 @@ describe('Camera State Persistence Tests', () => {
       // Should not significantly impact performance
       expect(averageTime).toBeLessThanOrEqual(20); // Allow up to 20ms per operation
       
-      console.log(`Average operation time with persistence: ${averageTime.toFixed(2)}ms`);
+      window.console.log(`Average operation time with persistence: ${averageTime.toFixed(2)}ms`);
     });
 
     test('should batch state saves efficiently', () => {

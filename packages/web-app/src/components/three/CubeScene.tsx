@@ -38,15 +38,15 @@ const CubeSceneContent: React.FC = () => {
   };
 
   const handleRotationStart = (command: RotationCommand) => {
-    console.log('🎯 handleRotationStart called:', command);
-    console.log('🎯 cubeGroup exists:', !!cubeGroup);
-    console.log('🎯 animationRef.current?.isAnimating:', animationRef.current?.isAnimating);
+    window.console.log('🎯 handleRotationStart called:', command);
+    window.console.log('🎯 cubeGroup exists:', !!cubeGroup);
+    window.console.log('🎯 animationRef.current?.isAnimating:', animationRef.current?.isAnimating);
     
     if (cubeGroup && !animationRef.current?.isAnimating) {
-      console.log('🎯 Starting smooth rotation!');
+      window.console.log('🎯 Starting smooth rotation!');
       startSmoothRotation(cubeGroup, command);
     } else {
-      console.log('🎯 Rotation blocked - cubeGroup missing or already animating');
+      window.console.log('🎯 Rotation blocked - cubeGroup missing or already animating');
     }
   };
 

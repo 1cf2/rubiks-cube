@@ -143,7 +143,7 @@ export const DebugControls: React.FC<DebugControlsProps> = ({ isVisible = false 
           </button>
           <button 
             style={buttonStyle} 
-            onClick={() => console.log(featureFlags.getDebugSummary())}
+            onClick={() => window.console.log(featureFlags.getDebugSummary())}
             title="Log flag status to console"
           >
             📋 Log Status

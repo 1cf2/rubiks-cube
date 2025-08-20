@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
-import { 
-  FacePosition, 
-  RotationCommand, 
+import {
+  FacePosition,
+  RotationCommand,
   VisualFeedback,
   CubeError,
   Move,
@@ -16,6 +16,7 @@ import { useMoveCompletionFeedback } from '../three/MoveCompletionFeedback';
 import { useInvalidMovePrevention } from '../three/InvalidMovePreventionManager';
 import { DebugOverlay } from '../debug/DebugOverlay';
 import { isOverlayEnabled } from '../../utils/featureFlags';
+import { DebugLogger, MouseGestureDebugger } from '../../utils/debugLogger';
 
 export interface MouseControlsProps {
   camera: THREE.Camera | null;
@@ -61,6 +62,17 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [, setVisualFeedback] = useState<Map<FacePosition, VisualFeedback>>(new Map());
   const checkMoveValidityRef = useRef<((face: FacePosition) => boolean) | null>(null);
+
+  // Log when component mounts
+  useEffect(() => {
+    DebugLogger.debug('MouseControls', 'Component mounted', {
+      isEnabled,
+      containerRef: containerRef.current,
+      hasCamera: !!camera,
+      hasScene: !!scene,
+      hasCubeGroup: !!cubeGroup
+    });
+  }, [isEnabled, camera, scene, cubeGroup]);
 
   // Move completion feedback hook
   const { 
@@ -247,6 +259,13 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 
   // Use handlers from useMouseGestures hook
   const handleContainerMouseDown = useCallback((event: React.MouseEvent) => {
+    MouseGestureDebugger.logEventDetails(event, 'MouseControls');
+    DebugLogger.debug('MouseControls', 'Mouse down event received', {
+      isEnabled,
+      target: event.target,
+      currentTarget: event.currentTarget,
+      containerRef: containerRef.current
+    });
     if (!isEnabled) return;
     handlers.onMouseDown(event);
   }, [isEnabled, handlers]);
@@ -307,7 +326,8 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     WebkitUserSelect: 'none',
     touchAction: 'none', // Prevent touch scrolling and zooming
     WebkitTouchCallout: 'none', // Prevent iOS callout
-    zIndex: 999, // Ensure mouse overlay is above everything else
+    zIndex: 10, // Above canvas but below other UI elements
+    backgroundColor: 'transparent', // Ensure transparent background
     ...style,
   };
 
@@ -357,6 +377,25 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         aria-disabled={!isEnabled}
         data-testid="mouse-controls"
       >
+        {/* Debug overlay to show interaction area */}
+        {process.env['NODE_ENV'] === 'development' && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            border: '2px dashed red',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            color: 'red',
+            fontSize: '12px',
+            padding: '4px',
+            backgroundColor: 'rgba(255,0,0,0.1)'
+          }}>
+            Mouse Controls Area
+          </div>
+        )}
       </div>
     </>
   );

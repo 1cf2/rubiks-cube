@@ -44,6 +44,8 @@ const DEVELOPMENT_FLAGS: Partial<FeatureFlags> = {
   enableConsoleDebugLogs: true,
   enableMouseGestureLogging: true,
   enableDevelopmentTools: true,
+  enableRaycastDebug: true,
+  enablePerformanceMonitoring: true,
 };
 
 // URL parameter overrides (for quick testing)
@@ -185,6 +187,6 @@ if (typeof window !== 'undefined') {
     overlay: () => featureFlags.toggleFlag('enableMouseGestureOverlay'),
     logs: () => featureFlags.toggleFlag('enableConsoleDebugLogs'),
     reset: () => featureFlags.reset(),
-    status: () => console.log(featureFlags.getDebugSummary()),
+    status: () => window.console.log(featureFlags.getDebugSummary()),
   };
 }

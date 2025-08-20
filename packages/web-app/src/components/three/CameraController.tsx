@@ -69,7 +69,7 @@ export const CameraController: React.FC<CameraControllerProps> = ({
   // Log initialization status
   useEffect(() => {
     if (isInitialized) {
-      console.log('CameraController initialized successfully');
+      window.console.log('CameraController initialized successfully');
     }
   }, [isInitialized]);
 

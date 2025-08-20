@@ -187,7 +187,7 @@ export function useCubeInteraction(
     }
 
     const selectedFace = raycastResult.data.facePosition;
-    console.log('✅ useCubeInteraction: Face selected:', selectedFace);
+    window.console.log('✅ useCubeInteraction: Face selected:', selectedFace);
     DebugLogger.info('useCubeInteraction', 'Face selected successfully', {
       selectedFace,
       raycastPoint: raycastResult.data.point,
@@ -295,7 +295,7 @@ export function useCubeInteraction(
 
   // Handle drag end
   const handleDragEnd = useCallback((gesture: DragGesture) => {
-    console.log('🔄 useCubeInteraction: handleDragEnd called!', {
+    window.console.log('🔄 useCubeInteraction: handleDragEnd called!', {
       gesture,
       currentRotation,
       rotationStartRef: rotationStartRef.current,
@@ -354,7 +354,7 @@ export function useCubeInteraction(
       const move = createMove(finalRotation.face, finalRotation.direction);
       
       DebugLogger.info('useCubeInteraction', 'Starting rotation animation', finalRotation);
-      console.log('🚀 useCubeInteraction: Calling onRotationStart with:', finalRotation);
+      window.console.log('🚀 useCubeInteraction: Calling onRotationStart with:', finalRotation);
       setIsAnimating(true);
       callbacks.onRotationStart?.(finalRotation);
 
@@ -380,7 +380,7 @@ export function useCubeInteraction(
       const move = createMove(finalRotation.face, finalRotation.direction);
       
       DebugLogger.info('useCubeInteraction', 'Finalizing existing rotation', finalRotation);
-      console.log('🚀 useCubeInteraction: Finalizing rotation - calling onRotationStart with:', finalRotation);
+      window.console.log('🚀 useCubeInteraction: Finalizing rotation - calling onRotationStart with:', finalRotation);
       setIsAnimating(true);
       callbacks.onRotationStart?.(finalRotation);
 

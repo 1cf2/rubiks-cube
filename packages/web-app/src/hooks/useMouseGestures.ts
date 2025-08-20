@@ -93,6 +93,14 @@ export function useMouseGestures(
 
   // Handle mouse down
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
+    window.console.log('🎮 useMouseGestures: Mouse down event triggered', {
+      target: event.target,
+      currentTarget: event.currentTarget,
+      button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY
+    });
+    
     DebugLogger.group('useMouseGestures', 'Mouse Down Event');
     DebugLogger.info('useMouseGestures', 'Mouse down triggered');
     MouseGestureDebugger.logEventDetails(event, 'MouseDown');
@@ -103,6 +111,7 @@ export function useMouseGestures(
     const startTime = performance.now();
     
     DebugLogger.debug('useMouseGestures', 'Mouse position calculated', position);
+    window.console.log('🎮 useMouseGestures: Mouse down position calculated', position);
     
     const initialGesture: DragGesture = {
       startPosition: position,
@@ -124,7 +133,7 @@ export function useMouseGestures(
     });
     
     DebugLogger.info('useMouseGestures', 'Calling onDragStart callback');
-    console.log('🎮 useMouseGestures: Calling onDragStart with:', initialGesture);
+    window.console.log('🎮 useMouseGestures: Calling onDragStart with:', initialGesture);
     opts.onDragStart?.(initialGesture);
     DebugLogger.groupEnd();
   }, [getMousePosition, opts]);
@@ -238,7 +247,7 @@ export function useMouseGestures(
       });
       
       DebugLogger.info('useMouseGestures', 'Calling onDragEnd callback');
-      console.log('🎮 useMouseGestures: Calling onDragEnd with:', finalGesture);
+      window.console.log('🎮 useMouseGestures: Calling onDragEnd with:', finalGesture);
       opts.onDragEnd?.(finalGesture);
     } else {
       DebugLogger.warn('useMouseGestures', 'Mouse up but no gestureRef.current!');

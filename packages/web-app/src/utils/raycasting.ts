@@ -26,6 +26,19 @@ export class RaycastingUtils {
   }
 
   /**
+   * Converts screen coordinates to normalized device coordinates using any element
+   */
+  private static screenToNDCFromElement(
+    mousePos: MousePosition, 
+    element: HTMLElement
+  ): THREE.Vector2 {
+    const rect = element.getBoundingClientRect();
+    const x = ((mousePos.x - rect.left) / rect.width) * 2 - 1;
+    const y = -((mousePos.y - rect.top) / rect.height) * 2 + 1;
+    return new THREE.Vector2(x, y);
+  }
+
+  /**
    * Determines which cube face was clicked based on mesh name or position
    */
   private static getFacePosition(mesh: THREE.Mesh): FacePosition | null {
@@ -71,7 +84,15 @@ export class RaycastingUtils {
     try {
       const { camera, scene, mouse: mousePos } = options;
       
+      window.console.log('🔍 RaycastingUtils: Starting raycast', {
+        hasCamera: !!camera,
+        hasScene: !!scene,
+        mousePos,
+        sceneChildrenCount: scene?.children.length || 0
+      });
+      
       if (!camera || !scene) {
+        window.console.log('❌ RaycastingUtils: Missing camera or scene');
         return {
           success: false,
           error: CubeError.RAYCASTING_FAILED,
@@ -79,29 +100,49 @@ export class RaycastingUtils {
         };
       }
 
-      // Get canvas element
+      // Get canvas element or use the three.js container
       const canvas = document.querySelector('canvas');
-      if (!canvas) {
+      const container = document.querySelector('[data-testid="mouse-controls"]') as HTMLElement;
+      const target = canvas || container;
+      
+      if (!target) {
+        window.console.log('❌ RaycastingUtils: No canvas or container found');
         return {
           success: false,
           error: CubeError.RAYCASTING_FAILED,
-          message: 'Canvas element not found',
+          message: 'Canvas or container element not found',
         };
       }
 
       // Convert mouse position to normalized device coordinates
-      this.mouse = this.screenToNDC(mousePos, canvas);
+      this.mouse = canvas 
+        ? RaycastingUtils.screenToNDC(mousePos, canvas as HTMLCanvasElement)
+        : RaycastingUtils.screenToNDCFromElement(mousePos, target);
+      window.console.log('🔍 RaycastingUtils: NDC coordinates', {
+        original: mousePos,
+        ndc: { x: this.mouse.x, y: this.mouse.y }
+      });
       
       // Set up raycaster
       this.raycaster.setFromCamera(this.mouse, camera);
 
       // Find intersections with cube meshes
       const intersects = this.raycaster.intersectObjects(scene.children, options.recursive);
+      window.console.log('🔍 RaycastingUtils: Raw intersections', {
+        totalIntersects: intersects.length,
+        intersectNames: intersects.map(i => i.object.name || 'unnamed')
+      });
 
       // Filter for cube face meshes only
       const cubeIntersects = intersects.filter(intersect => {
         const mesh = intersect.object as THREE.Mesh;
-        return mesh.isMesh && this.getFacePosition(mesh) !== null;
+        const facePosition = this.getFacePosition(mesh);
+        window.console.log('🔍 RaycastingUtils: Checking mesh', {
+          name: mesh.name,
+          isMesh: mesh.isMesh,
+          facePosition
+        });
+        return mesh.isMesh && facePosition !== null;
       });
 
       if (cubeIntersects.length === 0) {

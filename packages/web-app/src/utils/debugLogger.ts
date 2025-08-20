@@ -25,55 +25,55 @@ export class DebugLogger {
 
   static error(component: string, message: string, data?: any) {
     if (this.isEnabled() && this.level >= DebugLevel.ERROR) {
-      console.error(`${this.prefix} [${component}] ERROR:`, message, data || '');
+      window.console.error(`${this.prefix} [${component}] ERROR:`, message, data || '');
     }
   }
 
   static warn(component: string, message: string, data?: any) {
     if (this.isEnabled() && this.level >= DebugLevel.WARN) {
-      console.warn(`${this.prefix} [${component}] WARN:`, message, data || '');
+      window.console.warn(`${this.prefix} [${component}] WARN:`, message, data || '');
     }
   }
 
   static info(component: string, message: string, data?: any) {
     if (this.isEnabled() && this.level >= DebugLevel.INFO) {
-      console.info(`${this.prefix} [${component}] INFO:`, message, data || '');
+      window.console.info(`${this.prefix} [${component}] INFO:`, message, data || '');
     }
   }
 
   static debug(component: string, message: string, data?: any) {
     if (this.isEnabled() && this.level >= DebugLevel.DEBUG) {
-      console.log(`${this.prefix} [${component}] DEBUG:`, message, data || '');
+      window.console.log(`${this.prefix} [${component}] DEBUG:`, message, data || '');
     }
   }
 
   static trace(component: string, message: string, data?: any) {
     if (this.isEnabled() && this.level >= DebugLevel.TRACE) {
-      console.log(`${this.prefix} [${component}] TRACE:`, message, data || '');
+      window.console.log(`${this.prefix} [${component}] TRACE:`, message, data || '');
     }
   }
 
   static group(component: string, title: string) {
     if (this.isEnabled() && this.level >= DebugLevel.DEBUG) {
-      console.group(`${this.prefix} [${component}] ${title}`);
+      window.console.group(`${this.prefix} [${component}] ${title}`);
     }
   }
 
   static groupEnd() {
     if (this.isEnabled() && this.level >= DebugLevel.DEBUG) {
-      console.groupEnd();
+      window.console.groupEnd();
     }
   }
 
   static time(label: string) {
     if (this.isEnabled() && this.level >= DebugLevel.DEBUG) {
-      console.time(`${this.prefix} ${label}`);
+      window.console.time(`${this.prefix} ${label}`);
     }
   }
 
   static timeEnd(label: string) {
     if (this.isEnabled() && this.level >= DebugLevel.DEBUG) {
-      console.timeEnd(`${this.prefix} ${label}`);
+      window.console.timeEnd(`${this.prefix} ${label}`);
     }
   }
 }
