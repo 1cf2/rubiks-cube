@@ -30,11 +30,13 @@ export interface MouseControlsProps {
   enableInvalidMovePrevention?: boolean;
   allowConcurrentAnimations?: boolean;
   enableDebugOverlay?: boolean;
-  onFaceHover?: (_face: FacePosition | null) => void;
-  onFaceSelect?: (_face: FacePosition) => void;
-  onRotationStart?: (_command: RotationCommand) => void;
-  onRotationComplete?: (_command: RotationCommand, _move: Move) => void;
-  onError?: (_error: CubeError, _message?: string) => void;
+  /* eslint-disable no-unused-vars */
+  onFaceHover?: (face: FacePosition | null) => void;
+  onFaceSelect?: (face: FacePosition) => void;
+  onRotationStart?: (command: RotationCommand) => void;
+  onRotationComplete?: (command: RotationCommand, move: Move) => void;
+  onError?: (error: CubeError, message?: string) => void;
+  /* eslint-enable no-unused-vars */
   className?: string;
   style?: React.CSSProperties;
 }
@@ -61,6 +63,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [, setVisualFeedback] = useState<Map<FacePosition, VisualFeedback>>(new Map());
+  // eslint-disable-next-line no-unused-vars
   const checkMoveValidityRef = useRef<((face: FacePosition) => boolean) | null>(null);
 
   // Log when component mounts
@@ -153,7 +156,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     ],
     allowConcurrentAnimations,
     isEnabled: enableInvalidMovePrevention,
-    onInvalidMoveAttempt: (_face, _reason) => {
+    onInvalidMoveAttempt: (/* face, reason */) => {
       // Invalid move blocked
     },
     ...(onError && { onError }),
@@ -259,6 +262,18 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 
   // Use handlers from useMouseGestures hook
   const handleContainerMouseDown = useCallback((event: React.MouseEvent) => {
+    window.console.group('🖱️ MouseControls: Mouse Down Handler Chain');
+    window.console.log('🖱️ MouseControls: Mouse down event received', {
+      isEnabled,
+      button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      target: event.target,
+      currentTarget: event.currentTarget,
+      containerRef: containerRef.current,
+      hasHandlers: !!handlers,
+      timeStamp: event.timeStamp
+    });
     MouseGestureDebugger.logEventDetails(event, 'MouseControls');
     DebugLogger.debug('MouseControls', 'Mouse down event received', {
       isEnabled,
@@ -266,26 +281,53 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       currentTarget: event.currentTarget,
       containerRef: containerRef.current
     });
-    if (!isEnabled) return;
+    if (!isEnabled) {
+      window.console.warn('⚠️ MouseControls: Mouse down ignored - not enabled');
+      window.console.groupEnd();
+      return;
+    }
+    window.console.log('🖱️ MouseControls: Calling handlers.onMouseDown');
     handlers.onMouseDown(event);
+    window.console.groupEnd();
   }, [isEnabled, handlers]);
 
   const handleContainerMouseMove = useCallback((event: React.MouseEvent) => {
     if (!isEnabled) return;
+    window.console.log('🖱️ MouseControls: Mouse move event', {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      buttons: event.buttons
+    });
     handlers.onMouseMove(event);
   }, [isEnabled, handlers]);
 
   const handleContainerMouseUp = useCallback((event: React.MouseEvent) => {
-    if (!isEnabled) return;
+    window.console.group('🖱️ MouseControls: Mouse Up Handler Chain');
+    window.console.log('🖱️ MouseControls: Mouse up event received', {
+      isEnabled,
+      button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      timeStamp: event.timeStamp
+    });
+    if (!isEnabled) {
+      window.console.warn('⚠️ MouseControls: Mouse up ignored - not enabled');
+      window.console.groupEnd();
+      return;
+    }
+    window.console.log('🖱️ MouseControls: Calling handlers.onMouseUp');
     handlers.onMouseUp(event);
+    window.console.groupEnd();
   }, [isEnabled, handlers]);
 
   const handleContainerMouseLeave = useCallback((event: React.MouseEvent) => {
+    window.console.log('🖱️ MouseControls: Mouse leave event');
     if (!isEnabled) return;
     handlers.onMouseLeave(event);
   }, [isEnabled, handlers]);
 
   const handleContainerMouseEnter = useCallback((event: React.MouseEvent) => {
+    window.console.log('🖱️ MouseControls: Mouse enter event');
     if (!isEnabled) return;
     handlers.onMouseEnter(event);
   }, [isEnabled, handlers]);

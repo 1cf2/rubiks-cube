@@ -83,14 +83,29 @@ export class MouseInteractionHandler {
    * Handle mouse down events
    */
   private handleMouseDown(event: MouseEvent): void {
+    window.console.log('🖱️ MouseInteractionHandler: handleMouseDown triggered', {
+      button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      target: event.target,
+      isDragging: this.isDragging
+    });
+    
     event.preventDefault();
     
     this.isDragging = true;
     this.dragStartPosition = { x: event.clientX, y: event.clientY };
     
+    window.console.log('🖱️ MouseInteractionHandler: Drag state updated', {
+      isDragging: this.isDragging,
+      dragStartPosition: this.dragStartPosition
+    });
+    
     const inputStart = performance.now();
     this.onMouseDown?.(event);
     this.updateInputLatency(performance.now() - inputStart);
+    
+    window.console.log('🖱️ MouseInteractionHandler: Mouse down handler completed');
   }
 
   /**
@@ -98,6 +113,14 @@ export class MouseInteractionHandler {
    */
   private handleMouseMove(event: MouseEvent): void {
     if (this.isDragging) {
+      window.console.log('🖱️ MouseInteractionHandler: Mouse move during drag', {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        startX: this.dragStartPosition.x,
+        startY: this.dragStartPosition.y,
+        deltaX: event.clientX - this.dragStartPosition.x,
+        deltaY: event.clientY - this.dragStartPosition.y
+      });
       event.preventDefault();
     }
     
@@ -110,16 +133,32 @@ export class MouseInteractionHandler {
    * Handle mouse up events
    */
   private handleMouseUp(event: MouseEvent): void {
+    window.console.log('🖱️ MouseInteractionHandler: handleMouseUp triggered', {
+      button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      wasDragging: this.isDragging,
+      dragStartPosition: this.dragStartPosition
+    });
+    
     this.isDragging = false;
     this.onMouseUp?.(event);
+    
+    window.console.log('🖱️ MouseInteractionHandler: Mouse up handler completed');
   }
 
   /**
    * Handle mouse leave events
    */
   private handleMouseLeave(event: MouseEvent): void {
+    window.console.log('🖱️ MouseInteractionHandler: handleMouseLeave triggered', {
+      wasDragging: this.isDragging
+    });
+    
     this.isDragging = false;
     this.onMouseLeave?.(event);
+    
+    window.console.log('🖱️ MouseInteractionHandler: Mouse leave handler completed');
   }
 
   /**

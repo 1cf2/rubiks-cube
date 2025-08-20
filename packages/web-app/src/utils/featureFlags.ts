@@ -46,6 +46,7 @@ const DEVELOPMENT_FLAGS: Partial<FeatureFlags> = {
   enableDevelopmentTools: true,
   enableRaycastDebug: true,
   enablePerformanceMonitoring: true,
+  enableGestureVisualization: true,
 };
 
 // URL parameter overrides (for quick testing)

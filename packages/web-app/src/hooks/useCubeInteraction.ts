@@ -206,11 +206,27 @@ export function useCubeInteraction(
       startAngle: 0,
     };
 
+    MouseGestureDebugger.addToGestureChain('useCubeInteraction', 'faceSelected', { selectedFace });
     callbacks.onFaceSelect?.(selectedFace);
   }, [camera, scene, isAnimating, callbacks]);
 
   // Handle drag update
   const handleDragUpdate = useCallback((gesture: DragGesture) => {
+    window.console.log('🖱️ useCubeInteraction: handleDragUpdate called', {
+      gesture,
+      hasCamera: !!camera,
+      hasScene: !!scene,
+      hasRotationStart: !!rotationStartRef.current,
+      isAnimating,
+      gestureDetails: {
+        startPosition: gesture.startPosition,
+        currentPosition: gesture.currentPosition,
+        delta: gesture.delta,
+        duration: gesture.duration,
+        isActive: gesture.isActive
+      }
+    });
+    
     DebugLogger.debug('useCubeInteraction', 'handleDragUpdate called', {
       gesture,
       hasCamera: !!camera,
@@ -220,6 +236,13 @@ export function useCubeInteraction(
     });
     
     if (!camera || !scene || !rotationStartRef.current || isAnimating) {
+      window.console.warn('⚠️ useCubeInteraction: Drag update blocked', {
+        hasCamera: !!camera,
+        hasScene: !!scene,
+        hasRotationStart: !!rotationStartRef.current,
+        isAnimating,
+        reason: !camera ? 'no camera' : !scene ? 'no scene' : !rotationStartRef.current ? 'no rotation start' : 'is animating'
+      });
       DebugLogger.warn('useCubeInteraction', 'Drag update blocked', {
         hasCamera: !!camera,
         hasScene: !!scene,
@@ -235,8 +258,16 @@ export function useCubeInteraction(
     const { deltaX, deltaY } = gesture.delta;
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     
+    window.console.log('🖱️ useCubeInteraction: Movement check', {
+      deltaX,
+      deltaY,
+      distance,
+      threshold: 5,
+      enoughMovement: distance >= 5
+    });
+    
     if (distance < 5) {
-      // Not enough movement yet
+      window.console.log('🖱️ useCubeInteraction: Not enough movement for rotation');
       return;
     }
     
@@ -266,6 +297,14 @@ export function useCubeInteraction(
       isComplete: false,
     };
 
+    window.console.log('⚙️ useCubeInteraction: Rotation command created', {
+      face,
+      direction: direction === 'clockwise' ? 'CLOCKWISE' : 'COUNTERCLOCKWISE',
+      angle,
+      targetAngle,
+      rawDirection: direction
+    });
+    
     DebugLogger.debug('useCubeInteraction', 'Rotation command created', rotationCommand);
     setCurrentRotation(rotationCommand);
     setInteractionState(prev => ({
@@ -355,11 +394,13 @@ export function useCubeInteraction(
       
       DebugLogger.info('useCubeInteraction', 'Starting rotation animation', finalRotation);
       window.console.log('🚀 useCubeInteraction: Calling onRotationStart with:', finalRotation);
+      MouseGestureDebugger.addToGestureChain('useCubeInteraction', 'rotationStart', { face: finalRotation.face, direction: finalRotation.direction });
       setIsAnimating(true);
       callbacks.onRotationStart?.(finalRotation);
 
       setTimeout(() => {
         DebugLogger.info('useCubeInteraction', 'Animation completed');
+        MouseGestureDebugger.addToGestureChain('useCubeInteraction', 'rotationComplete', { move });
         setIsAnimating(false);
         callbacks.onRotationComplete?.(finalRotation, move);
         resetInteraction();
@@ -381,11 +422,13 @@ export function useCubeInteraction(
       
       DebugLogger.info('useCubeInteraction', 'Finalizing existing rotation', finalRotation);
       window.console.log('🚀 useCubeInteraction: Finalizing rotation - calling onRotationStart with:', finalRotation);
+      MouseGestureDebugger.addToGestureChain('useCubeInteraction', 'rotationFinalize', { face: finalRotation.face, direction: finalRotation.direction });
       setIsAnimating(true);
       callbacks.onRotationStart?.(finalRotation);
 
       setTimeout(() => {
         DebugLogger.info('useCubeInteraction', 'Rotation finalization completed');
+        MouseGestureDebugger.addToGestureChain('useCubeInteraction', 'rotationFinalizeComplete', { move });
         setIsAnimating(false);
         callbacks.onRotationComplete?.(finalRotation, move);
         resetInteraction();
@@ -393,6 +436,7 @@ export function useCubeInteraction(
     } else {
       // No meaningful rotation, just reset
       DebugLogger.info('useCubeInteraction', 'No meaningful rotation detected, resetting');
+      MouseGestureDebugger.addToGestureChain('useCubeInteraction', 'noRotation', { reason: 'insufficient movement or time' });
       resetInteraction();
     }
     

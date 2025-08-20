@@ -8,11 +8,13 @@ import {
 import { DebugLogger, MouseGestureDebugger } from '../utils/debugLogger';
 
 interface UseMouseGesturesOptions extends GestureRecognitionOptions {
-  onDragStart?: (_gesture: DragGesture) => void;
-  onDragUpdate?: (_gesture: DragGesture) => void;
-  onDragEnd?: (_gesture: DragGesture) => void;
-  onHover?: (_position: MousePosition) => void;
+  /* eslint-disable no-unused-vars */
+  onDragStart?: (gesture: DragGesture) => void;
+  onDragUpdate?: (gesture: DragGesture) => void;
+  onDragEnd?: (gesture: DragGesture) => void;
+  onHover?: (position: MousePosition) => void;
   onLeave?: () => void;
+  /* eslint-enable no-unused-vars */
 }
 
 interface UseMouseGesturesReturn {
@@ -20,11 +22,13 @@ interface UseMouseGesturesReturn {
   currentGesture: DragGesture | null;
   cursorState: CursorState;
   handlers: {
-    onMouseDown: (_event: React.MouseEvent) => void;
-    onMouseMove: (_event: React.MouseEvent) => void;
-    onMouseUp: (_event: React.MouseEvent) => void;
-    onMouseLeave: (_event: React.MouseEvent) => void;
-    onMouseEnter: (_event: React.MouseEvent) => void;
+    /* eslint-disable no-unused-vars */
+    onMouseDown: (event: React.MouseEvent) => void;
+    onMouseMove: (event: React.MouseEvent) => void;
+    onMouseUp: (event: React.MouseEvent) => void;
+    onMouseLeave: (event: React.MouseEvent) => void;
+    onMouseEnter: (event: React.MouseEvent) => void;
+    /* eslint-enable no-unused-vars */
   };
 }
 
@@ -101,6 +105,8 @@ export function useMouseGestures(
       clientY: event.clientY
     });
     
+    MouseGestureDebugger.startGestureChain('useMouseGestures:mouseDown');
+    
     DebugLogger.group('useMouseGestures', 'Mouse Down Event');
     DebugLogger.info('useMouseGestures', 'Mouse down triggered');
     MouseGestureDebugger.logEventDetails(event, 'MouseDown');
@@ -134,6 +140,8 @@ export function useMouseGestures(
     
     DebugLogger.info('useMouseGestures', 'Calling onDragStart callback');
     window.console.log('🎮 useMouseGestures: Calling onDragStart with:', initialGesture);
+    MouseGestureDebugger.addToGestureChain('useMouseGestures', 'onDragStart', initialGesture);
+    MouseGestureDebugger.logDragGestureProgression(initialGesture, 'start');
     opts.onDragStart?.(initialGesture);
     DebugLogger.groupEnd();
   }, [getMousePosition, opts]);
@@ -213,6 +221,13 @@ export function useMouseGestures(
       
       // Always call onDragUpdate when mouse is down and moving
       DebugLogger.trace('useMouseGestures', 'Calling onDragUpdate callback');
+      MouseGestureDebugger.addToGestureChain('useMouseGestures', 'onDragUpdate', {
+        distance,
+        isDragging,
+        deltaX: updatedGesture.delta.deltaX,
+        deltaY: updatedGesture.delta.deltaY
+      });
+      MouseGestureDebugger.logDragGestureProgression(updatedGesture, 'update');
       opts.onDragUpdate?.(updatedGesture);
     } else {
       DebugLogger.warn('useMouseGestures', 'No gestureRef.current in drag mode!');
@@ -248,7 +263,10 @@ export function useMouseGestures(
       
       DebugLogger.info('useMouseGestures', 'Calling onDragEnd callback');
       window.console.log('🎮 useMouseGestures: Calling onDragEnd with:', finalGesture);
+      MouseGestureDebugger.addToGestureChain('useMouseGestures', 'onDragEnd', finalGesture);
+      MouseGestureDebugger.logDragGestureProgression(finalGesture, 'end');
       opts.onDragEnd?.(finalGesture);
+      MouseGestureDebugger.endGestureChain('drag completed');
     } else {
       DebugLogger.warn('useMouseGestures', 'Mouse up but no gestureRef.current!');
     }
