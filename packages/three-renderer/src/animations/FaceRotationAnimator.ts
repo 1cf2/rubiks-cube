@@ -267,21 +267,50 @@ export class FaceRotationAnimator {
   }
 
   /**
-   * Apply rotation to face pieces
+   * Apply rotation to face pieces as a group around the face center
    */
   private rotateFacePieces(state: AnimationState, deltaAngle: number): void {
     const rotation = new THREE.Quaternion();
     rotation.setFromAxisAngle(state.rotationAxis, deltaAngle);
 
+    // Calculate face center for proper rotation
+    const faceCenter = this.getFaceCenter(state.animation.face);
+
     state.facePieces.forEach(piece => {
-      // Rotate around the cube center, not the piece center
-      const position = piece.position.clone();
-      position.applyQuaternion(rotation);
-      piece.position.copy(position);
+      // Store original position relative to face center
+      const relativePosition = piece.position.clone().sub(faceCenter);
+      
+      // Rotate position around face center
+      relativePosition.applyQuaternion(rotation);
+      
+      // Set new position relative to face center
+      piece.position.copy(faceCenter.clone().add(relativePosition));
       
       // Apply rotation to the piece itself
       piece.quaternion.multiplyQuaternions(rotation, piece.quaternion);
     });
+  }
+
+  /**
+   * Get the center point of a face for proper rotation
+   */
+  private getFaceCenter(face: FacePosition): THREE.Vector3 {
+    switch (face) {
+      case FacePosition.FRONT:
+        return new THREE.Vector3(0, 0, 1);
+      case FacePosition.BACK:
+        return new THREE.Vector3(0, 0, -1);
+      case FacePosition.LEFT:
+        return new THREE.Vector3(-1, 0, 0);
+      case FacePosition.RIGHT:
+        return new THREE.Vector3(1, 0, 0);
+      case FacePosition.UP:
+        return new THREE.Vector3(0, 1, 0);
+      case FacePosition.DOWN:
+        return new THREE.Vector3(0, -1, 0);
+      default:
+        return new THREE.Vector3(0, 0, 0);
+    }
   }
 
   /**
@@ -374,7 +403,7 @@ export class FaceRotationAnimator {
    * Generate unique animation ID
    */
   private generateAnimationId(): string {
-    return `anim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `anim_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
   /**

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Group, Mesh } from 'three';
+import React, { useState, useRef } from 'react';
+import { Group } from 'three';
 import { ThreeScene, useThreeContext } from './ThreeScene';
 import { CubeRenderer } from './CubeRenderer';
 import { ThreeJSErrorBoundary } from './ErrorBoundary';
@@ -7,19 +7,13 @@ import { MouseControls } from '../input/MouseControls';
 import { DebugControls } from '../debug/DebugControls';
 import { FacePosition, RotationCommand, Move, CubeError } from '@rubiks-cube/shared/types';
 import { RotationDirection } from '@rubiks-cube/shared/types/mouse-interactions';
+import { FaceRotationAnimator } from '@rubiks-cube/three-renderer';
 import { featureFlags } from '../../utils/featureFlags';
 
 const CubeSceneContent: React.FC = () => {
   const { scene, camera } = useThreeContext();
   const [cubeGroup, setCubeGroup] = useState<Group | null>(null);
-  const animationRef = useRef<{
-    isAnimating: boolean;
-    startTime: number;
-    duration: number;
-    startRotations: Map<Mesh, { x: number; y: number; z: number }>;
-    targetRotations: Map<Mesh, { x: number; y: number; z: number }>;
-    pieces: Mesh[];
-  } | null>(null);
+  const animatorRef = useRef<FaceRotationAnimator | null>(null);
 
   if (!scene) {
     return null;
@@ -27,6 +21,25 @@ const CubeSceneContent: React.FC = () => {
 
   const handleCubeGroupReady = (group: Group) => {
     setCubeGroup(group);
+    
+    // Initialize the FaceRotationAnimator with the cube group
+    if (group) {
+      animatorRef.current = new FaceRotationAnimator({
+        cubeGroup: group,
+        onAnimationStart: (animation) => {
+          window.console.log('🎬 Animation started:', animation);
+        },
+        onAnimationUpdate: () => {
+          // Animation progress updates
+        },
+        onAnimationComplete: (animation) => {
+          window.console.log('✅ Animation completed:', animation);
+        },
+        onError: (error, message) => {
+          window.console.error('❌ Animation error:', error, message);
+        },
+      });
+    }
   };
 
   const handleFaceHover = (_face: FacePosition | null) => {
@@ -40,13 +53,27 @@ const CubeSceneContent: React.FC = () => {
   const handleRotationStart = (command: RotationCommand) => {
     window.console.log('🎯 handleRotationStart called:', command);
     window.console.log('🎯 cubeGroup exists:', !!cubeGroup);
-    window.console.log('🎯 animationRef.current?.isAnimating:', animationRef.current?.isAnimating);
+    window.console.log('🎯 animator exists:', !!animatorRef.current);
     
-    if (cubeGroup && !animationRef.current?.isAnimating) {
-      window.console.log('🎯 Starting smooth rotation!');
-      startSmoothRotation(cubeGroup, command);
+    if (animatorRef.current && !animatorRef.current.hasActiveAnimations()) {
+      window.console.log('🎯 Starting FaceRotationAnimator rotation!');
+      
+      // Convert RotationCommand to the format expected by FaceRotationAnimator
+      const rotationConfig = {
+        face: command.face,
+        direction: command.direction,
+        angle: command.targetAngle || Math.PI / 2,
+        duration: 300,
+        easing: 'ease-out' as const,
+        move: createMoveFromCommand(command),
+      };
+      
+      const result = animatorRef.current.startRotation(rotationConfig);
+      if (!result.success) {
+        window.console.error('❌ Failed to start rotation:', result.error, result.message);
+      }
     } else {
-      window.console.log('🎯 Rotation blocked - cubeGroup missing or already animating');
+      window.console.log('🎯 Rotation blocked - animator missing or already animating');
     }
   };
 
@@ -54,135 +81,31 @@ const CubeSceneContent: React.FC = () => {
     // Rotation completion handled
   };
 
-  // Start smooth rotation animation
-  const startSmoothRotation = useCallback((group: Group, command: RotationCommand) => {
-    const pieces = getFacePieces(group, command.face);
-    
-    if (pieces.length === 0) {
-      return;
-    }
-
-    // Calculate target angle
-    let targetAngle = Math.PI / 2; // 90 degrees
-    if (command.direction === RotationDirection.COUNTERCLOCKWISE) {
-      targetAngle = -Math.PI / 2;
-    } else if (command.direction === RotationDirection.DOUBLE) {
-      targetAngle = Math.PI; // 180 degrees
-    }
-
-    // Store initial rotations
-    const startRotations = new Map<Mesh, { x: number; y: number; z: number }>();
-    const targetRotations = new Map<Mesh, { x: number; y: number; z: number }>();
-
-    pieces.forEach(piece => {
-      const startRot = { x: piece.rotation.x, y: piece.rotation.y, z: piece.rotation.z };
-      startRotations.set(piece, startRot);
-
-      const targetRot = { ...startRot };
-      switch (command.face) {
-        case FacePosition.FRONT:
-          targetRot.z += targetAngle;
-          break;
-        case FacePosition.BACK:
-          targetRot.z -= targetAngle;
-          break;
-        case FacePosition.LEFT:
-          targetRot.x += targetAngle;
-          break;
-        case FacePosition.RIGHT:
-          targetRot.x -= targetAngle;
-          break;
-        case FacePosition.UP:
-          targetRot.y += targetAngle;
-          break;
-        case FacePosition.DOWN:
-          targetRot.y -= targetAngle;
-          break;
-      }
-      targetRotations.set(piece, targetRot);
-    });
-
-    // Set up animation
-    animationRef.current = {
-      isAnimating: true,
-      startTime: performance.now(),
-      duration: 300, // 300ms animation
-      startRotations,
-      targetRotations,
-      pieces
+  // Helper function to convert RotationCommand to Move notation
+  const createMoveFromCommand = (command: RotationCommand): Move => {
+    const faceMap: Record<FacePosition, string> = {
+      [FacePosition.FRONT]: 'F',
+      [FacePosition.BACK]: 'B',
+      [FacePosition.LEFT]: 'L',
+      [FacePosition.RIGHT]: 'R',
+      [FacePosition.UP]: 'U',
+      [FacePosition.DOWN]: 'D',
     };
 
-    // Start animation loop
-    animateRotation();
-  }, []);
-
-  // Animation loop
-  const animateRotation = useCallback(() => {
-    const animation = animationRef.current;
-    if (!animation || !animation.isAnimating) {
-      return;
-    }
-
-    const elapsed = performance.now() - animation.startTime;
-    const progress = Math.min(elapsed / animation.duration, 1);
-
-    // Ease-out function
-    const easeProgress = 1 - Math.pow(1 - progress, 3);
-
-    // Update rotations
-    animation.pieces.forEach(piece => {
-      const startRot = animation.startRotations.get(piece);
-      const targetRot = animation.targetRotations.get(piece);
-      
-      if (startRot && targetRot) {
-        piece.rotation.x = startRot.x + (targetRot.x - startRot.x) * easeProgress;
-        piece.rotation.y = startRot.y + (targetRot.y - startRot.y) * easeProgress;
-        piece.rotation.z = startRot.z + (targetRot.z - startRot.z) * easeProgress;
-      }
-    });
-
-    if (progress < 1) {
-      requestAnimationFrame(animateRotation);
-    } else {
-      // Animation complete
-      animationRef.current = null;
-    }
-  }, []);
-
-  // Get the pieces that belong to a specific face
-  const getFacePieces = (group: Group, face: FacePosition): Mesh[] => {
-    const pieces: Mesh[] = [];
+    const baseFace = faceMap[command.face];
     
-    group.traverse((child) => {
-      if (child instanceof Mesh && child.userData) {
-        const { x, y, z } = child.userData;
-        
-        // Check if this piece is part of the rotating face
-        switch (face) {
-          case FacePosition.FRONT:
-            if (z === 1) pieces.push(child);
-            break;
-          case FacePosition.BACK:
-            if (z === -1) pieces.push(child);
-            break;
-          case FacePosition.LEFT:
-            if (x === -1) pieces.push(child);
-            break;
-          case FacePosition.RIGHT:
-            if (x === 1) pieces.push(child);
-            break;
-          case FacePosition.UP:
-            if (y === 1) pieces.push(child);
-            break;
-          case FacePosition.DOWN:
-            if (y === -1) pieces.push(child);
-            break;
-        }
-      }
-    });
-    
-    return pieces;
+    switch (command.direction) {
+      case RotationDirection.CLOCKWISE:
+        return baseFace as Move;
+      case RotationDirection.COUNTERCLOCKWISE:
+        return `${baseFace}'` as Move;
+      case RotationDirection.DOUBLE:
+        return `${baseFace}2` as Move;
+      default:
+        return baseFace as Move;
+    }
   };
+
 
   const handleError = (_error: CubeError, _message?: string) => {
     // Error handling for cube interactions
