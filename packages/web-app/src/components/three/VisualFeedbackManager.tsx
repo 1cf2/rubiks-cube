@@ -6,6 +6,7 @@ import { FacePosition, VisualFeedback, CubeError } from '@rubiks-cube/shared/typ
 interface VisualFeedbackManagerProps {
   scene: THREE.Scene | null;
   cubeGroup: THREE.Group | null;
+  cubeStateVersion?: number;
   feedbackMap: Map<FacePosition, VisualFeedback>;
   isEnabled?: boolean;
   onError?: (error: CubeError, message?: string) => void;
@@ -14,19 +15,25 @@ interface VisualFeedbackManagerProps {
 export const VisualFeedbackManager: React.FC<VisualFeedbackManagerProps> = ({
   scene,
   cubeGroup,
+  cubeStateVersion = 0,
   feedbackMap,
   isEnabled = true,
   onError,
 }) => {
   const faceHighlightingRef = useRef<FaceHighlighting | null>(null);
 
-  // Initialize FaceHighlighting system
+  // Initialize FaceHighlighting system and reinitialize when cube state changes
   useEffect(() => {
     if (!scene || !cubeGroup || !isEnabled) {
       return;
     }
 
     try {
+      // Dispose previous instance if it exists
+      if (faceHighlightingRef.current) {
+        faceHighlightingRef.current.dispose();
+      }
+      
       faceHighlightingRef.current = new FaceHighlighting({
         scene,
         cubeGroup,
@@ -34,6 +41,8 @@ export const VisualFeedbackManager: React.FC<VisualFeedbackManagerProps> = ({
         transitionDuration: 150, // Fast feedback for mouse down
         pulseAnimation: true,
       });
+      
+      window.console.log('🎨 VisualFeedbackManager: FaceHighlighting system (re)initialized');
     } catch (error) {
       onError?.(CubeError.WEBGL_CONTEXT_LOST, 'Failed to initialize visual feedback system');
     }
@@ -44,7 +53,7 @@ export const VisualFeedbackManager: React.FC<VisualFeedbackManagerProps> = ({
         faceHighlightingRef.current = null;
       }
     };
-  }, [scene, cubeGroup, isEnabled, onError]);
+  }, [scene, cubeGroup, cubeStateVersion, isEnabled, onError]);
 
   // Apply visual feedback when feedbackMap changes
   useEffect(() => {

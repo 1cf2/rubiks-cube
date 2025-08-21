@@ -63,15 +63,38 @@ export class RaycastingUtils {
   }
 
   /**
-   * Determines which specific face was clicked based on the intersection point and piece position
+   * Determines which specific face was clicked based on the face normal from raycaster
    */
   private static getClickedFace(
     mesh: THREE.Mesh, 
-    intersectionPoint: THREE.Vector3
+    intersectionPoint: THREE.Vector3,
+    faceNormal?: THREE.Vector3
   ): FacePosition | null {
-    const piecePos = mesh.position;
+    // If we have a face normal from raycaster, use it (most accurate)
+    if (faceNormal) {
+      // Convert face normal to face position by finding the dominant axis
+      const normal = faceNormal.normalize();
+      const absX = Math.abs(normal.x);
+      const absY = Math.abs(normal.y);
+      const absZ = Math.abs(normal.z);
+      
+      window.console.log('🎯 Using face normal for detection:', {
+        faceNormal: { x: normal.x, y: normal.y, z: normal.z },
+        absValues: { x: absX, y: absY, z: absZ }
+      });
+      
+      // Find the dominant axis and its direction
+      if (absX > absY && absX > absZ) {
+        return normal.x > 0 ? FacePosition.RIGHT : FacePosition.LEFT;
+      } else if (absY > absX && absY > absZ) {
+        return normal.y > 0 ? FacePosition.UP : FacePosition.DOWN;
+      } else if (absZ > absX && absZ > absY) {
+        return normal.z > 0 ? FacePosition.FRONT : FacePosition.BACK;
+      }
+    }
     
-    // Calculate relative position of intersection to piece center
+    // Fallback: use intersection point relative to piece center
+    const piecePos = mesh.position;
     const relativeX = intersectionPoint.x - piecePos.x;
     const relativeY = intersectionPoint.y - piecePos.y;
     const relativeZ = intersectionPoint.z - piecePos.z;
@@ -79,7 +102,7 @@ export class RaycastingUtils {
     // Cube pieces are 0.95 units, so surface is at ±0.475 from center
     const surfaceThreshold = 0.4; // Slightly less than 0.475 to account for precision
     
-    window.console.log('🎯 Determining clicked face:', {
+    window.console.log('🎯 Using intersection point fallback:', {
       piecePosition: { x: piecePos.x, y: piecePos.y, z: piecePos.z },
       intersectionPoint: { x: intersectionPoint.x, y: intersectionPoint.y, z: intersectionPoint.z },
       relative: { x: relativeX, y: relativeY, z: relativeZ },
@@ -94,7 +117,7 @@ export class RaycastingUtils {
     if (relativeZ > surfaceThreshold) return FacePosition.FRONT;
     if (relativeZ < -surfaceThreshold) return FacePosition.BACK;
     
-    // Fallback to primary face if intersection is too close to center
+    // Final fallback to primary face if intersection is too close to center
     return this.getPrimaryFaceFromPosition(mesh);
   }
 
@@ -181,16 +204,38 @@ export class RaycastingUtils {
         return mesh.isMesh && mesh.geometry && mesh.position;
       }).map(intersect => {
         const mesh = intersect.object as THREE.Mesh;
-        let facePosition = this.getFacePosition(mesh);
         
-        // If name-based lookup fails, use the intersection point to determine which face was clicked
+        window.console.log('🔍 Processing intersection:', {
+          meshName: mesh.name,
+          meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+          faceNormal: intersect.face?.normal ? 
+            { x: intersect.face.normal.x, y: intersect.face.normal.y, z: intersect.face.normal.z } : 
+            null,
+          intersectionPoint: { x: intersect.point.x, y: intersect.point.y, z: intersect.point.z }
+        });
+        
+        let facePosition = this.getFacePosition(mesh);
+        window.console.log('🔍 Name-based face detection result:', facePosition);
+        
+        // ALWAYS use face normal detection for better accuracy, skip name-based detection
+        if (intersect.face?.normal) {
+          const normalBasedFace = this.getClickedFace(mesh, intersect.point, intersect.face.normal);
+          window.console.log('🔍 Normal-based face detection result:', normalBasedFace);
+          if (normalBasedFace) {
+            facePosition = normalBasedFace;
+          }
+        }
+        
+        // If still no face position, use intersection point analysis
         if (!facePosition) {
           facePosition = this.getClickedFace(mesh, intersect.point);
+          window.console.log('🔍 Point-based face detection result:', facePosition);
         }
         
         // Final fallback to position-based lookup
         if (!facePosition) {
           facePosition = this.getPrimaryFaceFromPosition(mesh);
+          window.console.log('🔍 Primary face detection result:', facePosition);
         }
         
         return {

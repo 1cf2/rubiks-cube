@@ -24,6 +24,7 @@ export interface MouseControlsProps {
   camera: THREE.Camera | null;
   scene: THREE.Scene | null;
   cubeGroup: THREE.Group | null;
+  cubeStateVersion?: number;
   isEnabled?: boolean;
   enableRotationPreview?: boolean;
   previewIntensity?: number;
@@ -48,6 +49,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   camera,
   scene,
   cubeGroup,
+  cubeStateVersion = 0,
   isEnabled = true,
   enableRotationPreview = true,
   previewIntensity = 0.6,
@@ -182,12 +184,18 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       onRotationStart?.(command);
     },
     onRotationComplete: (command, move) => {
+      // Clear visual feedback for the rotated face
       updateVisualFeedback(command.face, 'normal');
+      
+      // Clear ALL visual feedback to prevent stale highlights after cube state changes
+      setVisualFeedback(new Map());
       
       // Show completion feedback
       if (enableCompletionFeedback) {
         showSuccessFlash(command.face);
       }
+      
+      window.console.log('🧹 Cleared all visual feedback after rotation completion');
       
       onRotationComplete?.(command, move);
     },
@@ -512,6 +520,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       <VisualFeedbackManager
         scene={scene}
         cubeGroup={cubeGroup}
+        cubeStateVersion={cubeStateVersion}
         feedbackMap={visualFeedback}
         isEnabled={isEnabled}
         {...(onError && { onError })}

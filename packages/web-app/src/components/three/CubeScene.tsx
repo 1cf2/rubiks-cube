@@ -13,6 +13,7 @@ import { featureFlags } from '../../utils/featureFlags';
 const CubeSceneContent: React.FC = () => {
   const { scene, camera } = useThreeContext();
   const [cubeGroup, setCubeGroup] = useState<Group | null>(null);
+  const [cubeStateVersion, setCubeStateVersion] = useState(0); // Track cube state changes
   const animatorRef = useRef<FaceRotationAnimator | null>(null);
 
   if (!scene) {
@@ -77,8 +78,22 @@ const CubeSceneContent: React.FC = () => {
     }
   };
 
-  const handleRotationComplete = (_command: RotationCommand, _move: Move) => {
-    // Rotation completion handled
+  const handleRotationComplete = (command: RotationCommand, move: Move) => {
+    window.console.log('✅ Rotation completed:', { command, move });
+    
+    // Force a refresh of the cube state and face mappings
+    // This ensures highlighting and interaction systems work correctly after rotation
+    if (animatorRef.current) {
+      // The animator already calls initializeFaceMeshes internally
+      // But we need to trigger a re-render of any highlighting systems
+      window.console.log('🔄 Cube state updated after rotation');
+      
+      // Increment version to trigger refresh of highlighting systems
+      setCubeStateVersion(prev => prev + 1);
+    }
+    
+    // Clear any lingering visual feedback to prevent stale highlights
+    // This will be handled by the MouseControls component
   };
 
   // Helper function to convert RotationCommand to Move notation
@@ -124,6 +139,7 @@ const CubeSceneContent: React.FC = () => {
         camera={camera}
         scene={scene}
         cubeGroup={cubeGroup}
+        cubeStateVersion={cubeStateVersion}
         isEnabled={true}
         enableRotationPreview={true}
         enableDebugOverlay={true}
