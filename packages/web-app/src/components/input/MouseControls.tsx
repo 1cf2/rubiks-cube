@@ -341,53 +341,79 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     }
     
     // Create individual highlight meshes for each piece in the layer
+    // Only highlight the rotating face to avoid visual clutter and overlapping
     layerMeshes.forEach((cubeMesh, index) => {
       const visibleFaces = LayerDetection.getVisibleFacesForPiece(cubeMesh.position, command.face);
       
-      visibleFaces.forEach(face => {
+      // Only highlight faces that are actually visible and prioritize the rotating face
+      const facesToHighlight = visibleFaces.filter(face => {
+        // Always include the rotating face
+        if (face === command.face) return true;
+        
+        // For other faces, only include them if they're on the outer edge of the cube
+        const pos = cubeMesh.position;
+        switch (face) {
+          case FacePosition.FRONT:
+            return Math.round(pos.z) === 1;
+          case FacePosition.BACK:
+            return Math.round(pos.z) === -1;
+          case FacePosition.LEFT:
+            return Math.round(pos.x) === -1;
+          case FacePosition.RIGHT:
+            return Math.round(pos.x) === 1;
+          case FacePosition.UP:
+            return Math.round(pos.y) === 1;
+          case FacePosition.DOWN:
+            return Math.round(pos.y) === -1;
+          default:
+            return false;
+        }
+      });
+      
+      facesToHighlight.forEach((face, faceIndex) => {
         // Create highlight geometry matching the piece size
         const highlightGeometry = new THREE.PlaneGeometry(0.95, 0.95);
         const highlightMaterial = new THREE.MeshBasicMaterial({
           color: face === command.face ? 0xffcc00 : 0x66ccff, // Orange for main face, blue for others
           transparent: true,
-          opacity: face === command.face ? 0.4 : 0.2,
-          side: THREE.DoubleSide,
-          blending: THREE.AdditiveBlending,
-          depthTest: false,
+          opacity: face === command.face ? 0.5 : 0.3,
+          side: THREE.FrontSide, // Only render front side to avoid double faces
+          depthTest: true, // Enable depth testing to prevent overlap issues
           depthWrite: false,
         });
         
         const highlightMesh = new THREE.Mesh(highlightGeometry, highlightMaterial);
-        highlightMesh.name = `layer-highlight-${face}-${index}`;
+        highlightMesh.name = `layer-highlight-${face}-${index}-${faceIndex}`;
         highlightMesh.renderOrder = 1001; // Render above regular highlights
         
-        // Position the highlight on the specific face of the piece
-        const offset = 0.005; // Small offset to appear on top of the surface
+        // Position the highlight on the specific face of the piece with proper offset
+        const offset = 0.01; // Increased offset to avoid z-fighting
         const pos = cubeMesh.position;
         
         switch (face) {
           case FacePosition.FRONT:
             highlightMesh.position.set(pos.x, pos.y, pos.z + 0.5 + offset);
+            highlightMesh.rotation.set(0, 0, 0);
             break;
           case FacePosition.BACK:
             highlightMesh.position.set(pos.x, pos.y, pos.z - 0.5 - offset);
-            highlightMesh.rotation.y = Math.PI;
+            highlightMesh.rotation.set(0, Math.PI, 0);
             break;
           case FacePosition.LEFT:
             highlightMesh.position.set(pos.x - 0.5 - offset, pos.y, pos.z);
-            highlightMesh.rotation.y = -Math.PI / 2;
+            highlightMesh.rotation.set(0, -Math.PI / 2, 0);
             break;
           case FacePosition.RIGHT:
             highlightMesh.position.set(pos.x + 0.5 + offset, pos.y, pos.z);
-            highlightMesh.rotation.y = Math.PI / 2;
+            highlightMesh.rotation.set(0, Math.PI / 2, 0);
             break;
           case FacePosition.UP:
             highlightMesh.position.set(pos.x, pos.y + 0.5 + offset, pos.z);
-            highlightMesh.rotation.x = -Math.PI / 2;
+            highlightMesh.rotation.set(-Math.PI / 2, 0, 0);
             break;
           case FacePosition.DOWN:
             highlightMesh.position.set(pos.x, pos.y - 0.5 - offset, pos.z);
-            highlightMesh.rotation.x = Math.PI / 2;
+            highlightMesh.rotation.set(Math.PI / 2, 0, 0);
             break;
         }
         
