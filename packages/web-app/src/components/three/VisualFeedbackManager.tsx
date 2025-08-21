@@ -42,7 +42,6 @@ export const VisualFeedbackManager: React.FC<VisualFeedbackManagerProps> = ({
         pulseAnimation: true,
       });
       
-      window.console.log('🎨 VisualFeedbackManager: FaceHighlighting system (re)initialized');
     } catch (error) {
       onError?.(CubeError.WEBGL_CONTEXT_LOST, 'Failed to initialize visual feedback system');
     }
@@ -57,10 +56,6 @@ export const VisualFeedbackManager: React.FC<VisualFeedbackManagerProps> = ({
 
   // Apply visual feedback when feedbackMap changes
   useEffect(() => {
-    // Only log if there are actual changes or feedback to apply
-    if (feedbackMap.size > 0) {
-      window.console.log('🎨 VisualFeedbackManager: applying feedback', feedbackMap.size, 'items');
-    }
     
     if (!faceHighlightingRef.current || !isEnabled) {
       return;

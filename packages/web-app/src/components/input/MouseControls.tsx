@@ -19,6 +19,7 @@ import { DebugOverlay } from '../debug/DebugOverlay';
 import { isOverlayEnabled } from '../../utils/featureFlags';
 import { DebugLogger } from '../../utils/debugLogger';
 import { useCameraControls } from '../../hooks/useCameraControls';
+import { LayerDetection } from '../../utils/layerDetection';
 
 export interface MouseControlsProps {
   camera: THREE.Camera | null;
@@ -69,6 +70,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visualFeedback, setVisualFeedback] = useState<Map<FacePosition, VisualFeedback>>(new Map());
+  const [selectedPiecePosition, setSelectedPiecePosition] = useState<readonly [number, number, number] | null>(null);
   // eslint-disable-next-line no-unused-vars
   const checkMoveValidityRef = useRef<((face: FacePosition) => boolean) | null>(null);
   
@@ -150,38 +152,35 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         return; // Block the selection if move is invalid
       }
       
+      // Store the clicked piece position for layer detection
+      if (mesh && mesh.position) {
+        setSelectedPiecePosition([mesh.position.x, mesh.position.y, mesh.position.z] as const);
+      }
+      
       updateVisualFeedback(face, 'selected', intersectionPoint, mesh, hitNormal);
       onFaceSelect?.(face);
     },
     onRotationStart: (command) => {
-      window.console.log('🎮 MouseControls: onRotationStart received:', command);
-      
       // Skip invalid move prevention for completed rotations (drag end finalization)
       // This prevents race conditions where currentRotation hasn't been cleared yet
       if (command.isComplete) {
-        window.console.log('🎮 MouseControls: Skipping invalid move prevention for completed rotation');
         updateVisualFeedback(command.face, 'rotating');
-        window.console.log('🎮 MouseControls: Calling parent onRotationStart callback');
         onRotationStart?.(command);
         return;
       }
       
       // Final check before starting rotation (only for non-completed rotations)
       if (enableInvalidMovePrevention && checkMoveValidityRef.current && !checkMoveValidityRef.current(command.face)) {
-        window.console.log('🚫 MouseControls: Rotation blocked by invalid move prevention');
-        window.console.log('🔍 Debug - currentRotation:', currentRotation);
-        window.console.log('🔍 Debug - isAnimating:', isAnimating);
-        window.console.log('🔍 Debug - selectedFace:', interactionState.selectedFace);
-        window.console.log('🔍 Debug - currentlyAnimating array:', [
-          ...(currentRotation ? [currentRotation.face] : []),
-          ...(interactionState.selectedFace && isAnimating ? [interactionState.selectedFace] : [])
-        ]);
         return; // Block the rotation if move is invalid
       }
       
       updateVisualFeedback(command.face, 'rotating');
-      window.console.log('🎮 MouseControls: Calling parent onRotationStart callback');
       onRotationStart?.(command);
+    },
+    onRotationUpdate: (command) => {
+      // When user starts dragging and we have a rotation direction, highlight the entire layer
+      window.console.log('🎯 onRotationUpdate called:', command.face, command.direction);
+      updateLayerHighlight(command);
     },
     onRotationComplete: (command, move) => {
       // Clear visual feedback for the rotated face
@@ -190,12 +189,17 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       // Clear ALL visual feedback to prevent stale highlights after cube state changes
       setVisualFeedback(new Map());
       
+      // Clear layer highlights
+      clearLayerHighlights();
+      
+      // Clear selected piece position
+      setSelectedPiecePosition(null);
+      
       // Show completion feedback
       if (enableCompletionFeedback) {
         showSuccessFlash(command.face);
       }
       
-      window.console.log('🧹 Cleared all visual feedback after rotation completion');
       
       onRotationComplete?.(command, move);
     },
@@ -274,6 +278,127 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       return newMap;
     });
   }, []);
+
+  // Store temporary layer highlight meshes
+  const layerHighlightMeshesRef = useRef<THREE.Mesh[]>([]);
+
+  // Clear temporary layer highlights
+  const clearLayerHighlights = useCallback(() => {
+    layerHighlightMeshesRef.current.forEach(mesh => {
+      if (mesh.parent) {
+        mesh.parent.remove(mesh);
+      }
+      // Clean up geometry and material
+      if (mesh.geometry) mesh.geometry.dispose();
+      if (mesh.material) {
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach(mat => mat.dispose());
+        } else {
+          mesh.material.dispose();
+        }
+      }
+    });
+    layerHighlightMeshesRef.current = [];
+  }, []);
+
+  // Update layer highlight for rotation preview
+  const updateLayerHighlight = useCallback((command: RotationCommand) => {
+    window.console.log('🎯 updateLayerHighlight called with:', {
+      hasScene: !!scene,
+      hasCubeGroup: !!cubeGroup,
+      selectedFace: interactionState.selectedFace,
+      selectedPiecePosition,
+      commandFace: command.face,
+      commandDirection: command.direction
+    });
+    
+    if (!scene || !cubeGroup || !interactionState.selectedFace || !selectedPiecePosition) {
+      window.console.warn('🎯 Layer highlighting: Missing dependencies');
+      return;
+    }
+    
+    // Clear any existing layer highlights first
+    clearLayerHighlights();
+    
+    // Determine which layer will be affected using the stored clicked piece position
+    const layerInfo = LayerDetection.getLayerPieces(
+      selectedPiecePosition,
+      command.face,
+      command.direction
+    );
+    
+    window.console.log('🎯 Layer info:', layerInfo);
+    
+    // Get all meshes in this layer
+    const layerMeshes = LayerDetection.findLayerMeshes(scene, layerInfo);
+    
+    window.console.log('🎯 Found layer meshes:', layerMeshes.length);
+    
+    // Debug: Check if we're finding meshes
+    if (layerMeshes.length === 0) {
+      window.console.warn('🎯 Layer highlighting: No meshes found for layer');
+      return;
+    }
+    
+    // Create individual highlight meshes for each piece in the layer
+    layerMeshes.forEach((cubeMesh, index) => {
+      const visibleFaces = LayerDetection.getVisibleFacesForPiece(cubeMesh.position, command.face);
+      
+      visibleFaces.forEach(face => {
+        // Create highlight geometry matching the piece size
+        const highlightGeometry = new THREE.PlaneGeometry(0.95, 0.95);
+        const highlightMaterial = new THREE.MeshBasicMaterial({
+          color: face === command.face ? 0xffcc00 : 0x66ccff, // Orange for main face, blue for others
+          transparent: true,
+          opacity: face === command.face ? 0.4 : 0.2,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthTest: false,
+          depthWrite: false,
+        });
+        
+        const highlightMesh = new THREE.Mesh(highlightGeometry, highlightMaterial);
+        highlightMesh.name = `layer-highlight-${face}-${index}`;
+        highlightMesh.renderOrder = 1001; // Render above regular highlights
+        
+        // Position the highlight on the specific face of the piece
+        const offset = 0.005; // Small offset to appear on top of the surface
+        const pos = cubeMesh.position;
+        
+        switch (face) {
+          case FacePosition.FRONT:
+            highlightMesh.position.set(pos.x, pos.y, pos.z + 0.5 + offset);
+            break;
+          case FacePosition.BACK:
+            highlightMesh.position.set(pos.x, pos.y, pos.z - 0.5 - offset);
+            highlightMesh.rotation.y = Math.PI;
+            break;
+          case FacePosition.LEFT:
+            highlightMesh.position.set(pos.x - 0.5 - offset, pos.y, pos.z);
+            highlightMesh.rotation.y = -Math.PI / 2;
+            break;
+          case FacePosition.RIGHT:
+            highlightMesh.position.set(pos.x + 0.5 + offset, pos.y, pos.z);
+            highlightMesh.rotation.y = Math.PI / 2;
+            break;
+          case FacePosition.UP:
+            highlightMesh.position.set(pos.x, pos.y + 0.5 + offset, pos.z);
+            highlightMesh.rotation.x = -Math.PI / 2;
+            break;
+          case FacePosition.DOWN:
+            highlightMesh.position.set(pos.x, pos.y - 0.5 - offset, pos.z);
+            highlightMesh.rotation.x = Math.PI / 2;
+            break;
+        }
+        
+        // Add to cube group so it rotates with the cube
+        cubeGroup.add(highlightMesh);
+        layerHighlightMeshesRef.current.push(highlightMesh);
+      });
+    });
+    
+    window.console.log('🎯 Created', layerHighlightMeshesRef.current.length, 'layer highlight meshes');
+  }, [scene, cubeGroup, interactionState.selectedFace, selectedPiecePosition, clearLayerHighlights]);
 
   // Get opacity based on state
   const getOpacityForState = (state: VisualFeedback['state']): number => {
@@ -413,12 +538,15 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     if (!isEnabled) return;
     handlers.onMouseLeave(event);
     
+    // Clear layer highlights when mouse leaves the container
+    clearLayerHighlights();
+    
     // End camera dragging on mouse leave
     if (isDraggingCamera) {
       setIsDraggingCamera(false);
       lastCameraOrbitRef.current = null;
     }
-  }, [isEnabled, isDraggingCamera, handlers]);
+  }, [isEnabled, isDraggingCamera, handlers, clearLayerHighlights]);
 
   const handleContainerMouseEnter = useCallback((event: React.MouseEvent) => {
     if (!isEnabled) return;
@@ -450,15 +578,17 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     if (!isEnabled) {
       resetInteraction();
       setVisualFeedback(new Map());
+      clearLayerHighlights();
     }
-  }, [isEnabled, resetInteraction]);
+  }, [isEnabled, resetInteraction, clearLayerHighlights]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       resetInteraction();
+      clearLayerHighlights();
     };
-  }, [resetInteraction]);
+  }, [resetInteraction, clearLayerHighlights]);
 
   // The mouse gesture handling is now done through React event handlers
   // connected to the useMouseGestures hook above

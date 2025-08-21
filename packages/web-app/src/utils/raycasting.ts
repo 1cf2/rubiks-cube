@@ -81,16 +81,6 @@ export class RaycastingUtils {
       const absY = Math.abs(worldNormal.y);
       const absZ = Math.abs(worldNormal.z);
       
-      window.console.log('🎯 Face normal analysis:', {
-        originalNormal: { x: faceNormal.x, y: faceNormal.y, z: faceNormal.z },
-        worldNormal: { x: worldNormal.x, y: worldNormal.y, z: worldNormal.z },
-        meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-        meshRotation: { 
-          x: mesh.rotation.x, 
-          y: mesh.rotation.y, 
-          z: mesh.rotation.z 
-        }
-      });
       
       // Find the dominant axis and its direction in world space
       if (absX > absY && absX > absZ) {
@@ -248,17 +238,6 @@ export class RaycastingUtils {
       const mesh = closest.mesh;
       const facePosition = closest.facePosition;
 
-      // Debug logging for raycast results
-      window.console.log('🎯 Raycasting result:', {
-        meshName: mesh.name,
-        meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-        intersectionPoint: [closest.point.x, closest.point.y, closest.point.z],
-        detectedFace: facePosition,
-        userData: mesh.userData,
-        faceIndex: closest.face?.materialIndex,
-        faceNormal: closest.face ? [closest.face.normal.x, closest.face.normal.y, closest.face.normal.z] : null,
-        distance: closest.distance
-      });
 
       const intersection: FaceIntersection = {
         facePosition,
