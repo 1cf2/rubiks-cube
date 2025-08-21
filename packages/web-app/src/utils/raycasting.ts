@@ -72,24 +72,33 @@ export class RaycastingUtils {
   ): FacePosition | null {
     // If we have a face normal from raycaster, use it (most accurate)
     if (faceNormal) {
-      // Convert face normal to face position by finding the dominant axis
-      const normal = faceNormal.normalize();
-      const absX = Math.abs(normal.x);
-      const absY = Math.abs(normal.y);
-      const absZ = Math.abs(normal.z);
+      // Transform face normal from local space to world space to account for rotations
+      const worldNormal = faceNormal.clone();
+      worldNormal.transformDirection(mesh.matrixWorld);
+      worldNormal.normalize();
       
-      window.console.log('🎯 Using face normal for detection:', {
-        faceNormal: { x: normal.x, y: normal.y, z: normal.z },
-        absValues: { x: absX, y: absY, z: absZ }
+      const absX = Math.abs(worldNormal.x);
+      const absY = Math.abs(worldNormal.y);
+      const absZ = Math.abs(worldNormal.z);
+      
+      window.console.log('🎯 Face normal analysis:', {
+        originalNormal: { x: faceNormal.x, y: faceNormal.y, z: faceNormal.z },
+        worldNormal: { x: worldNormal.x, y: worldNormal.y, z: worldNormal.z },
+        meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+        meshRotation: { 
+          x: mesh.rotation.x, 
+          y: mesh.rotation.y, 
+          z: mesh.rotation.z 
+        }
       });
       
-      // Find the dominant axis and its direction
+      // Find the dominant axis and its direction in world space
       if (absX > absY && absX > absZ) {
-        return normal.x > 0 ? FacePosition.RIGHT : FacePosition.LEFT;
+        return worldNormal.x > 0 ? FacePosition.RIGHT : FacePosition.LEFT;
       } else if (absY > absX && absY > absZ) {
-        return normal.y > 0 ? FacePosition.UP : FacePosition.DOWN;
+        return worldNormal.y > 0 ? FacePosition.UP : FacePosition.DOWN;
       } else if (absZ > absX && absZ > absY) {
-        return normal.z > 0 ? FacePosition.FRONT : FacePosition.BACK;
+        return worldNormal.z > 0 ? FacePosition.FRONT : FacePosition.BACK;
       }
     }
     
@@ -102,12 +111,6 @@ export class RaycastingUtils {
     // Cube pieces are 0.95 units, so surface is at ±0.475 from center
     const surfaceThreshold = 0.4; // Slightly less than 0.475 to account for precision
     
-    window.console.log('🎯 Using intersection point fallback:', {
-      piecePosition: { x: piecePos.x, y: piecePos.y, z: piecePos.z },
-      intersectionPoint: { x: intersectionPoint.x, y: intersectionPoint.y, z: intersectionPoint.z },
-      relative: { x: relativeX, y: relativeY, z: relativeZ },
-      surfaceThreshold
-    });
     
     // Check which face surface the intersection is closest to
     if (relativeX > surfaceThreshold) return FacePosition.RIGHT;
@@ -205,22 +208,11 @@ export class RaycastingUtils {
       }).map(intersect => {
         const mesh = intersect.object as THREE.Mesh;
         
-        window.console.log('🔍 Processing intersection:', {
-          meshName: mesh.name,
-          meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-          faceNormal: intersect.face?.normal ? 
-            { x: intersect.face.normal.x, y: intersect.face.normal.y, z: intersect.face.normal.z } : 
-            null,
-          intersectionPoint: { x: intersect.point.x, y: intersect.point.y, z: intersect.point.z }
-        });
-        
         let facePosition = this.getFacePosition(mesh);
-        window.console.log('🔍 Name-based face detection result:', facePosition);
         
-        // ALWAYS use face normal detection for better accuracy, skip name-based detection
+        // ALWAYS use face normal detection for better accuracy when available
         if (intersect.face?.normal) {
           const normalBasedFace = this.getClickedFace(mesh, intersect.point, intersect.face.normal);
-          window.console.log('🔍 Normal-based face detection result:', normalBasedFace);
           if (normalBasedFace) {
             facePosition = normalBasedFace;
           }
@@ -229,13 +221,11 @@ export class RaycastingUtils {
         // If still no face position, use intersection point analysis
         if (!facePosition) {
           facePosition = this.getClickedFace(mesh, intersect.point);
-          window.console.log('🔍 Point-based face detection result:', facePosition);
         }
         
         // Final fallback to position-based lookup
         if (!facePosition) {
           facePosition = this.getPrimaryFaceFromPosition(mesh);
-          window.console.log('🔍 Primary face detection result:', facePosition);
         }
         
         return {
