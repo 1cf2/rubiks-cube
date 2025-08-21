@@ -1,7 +1,7 @@
 {
   "name": "rubiks-cube",
   "version": "1.0.0",
-  "description": "",
+  "description": "High-performance 3D Rubik's Cube game with intuitive controls and realistic physics",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -20,8 +20,8 @@
     "clean": "lerna run clean && rimraf dist",
     "bootstrap": "lerna bootstrap"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["rubiks-cube", "3d-game", "threejs", "webgl", "puzzle", "react", "typescript"],
+  "author": "Rubik's Cube Team",
   "license": "ISC",
   "type": "commonjs",
   "workspaces": [

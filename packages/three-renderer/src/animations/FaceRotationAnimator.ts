@@ -79,21 +79,25 @@ export class FaceRotationAnimator {
    */
   private belongsToFace(object: THREE.Object3D, face: FacePosition): boolean {
     const position = object.position;
-    const threshold = 0.4; // Distance threshold for face membership
+    
+    // Round position to nearest integer to handle floating-point precision issues
+    const x = Math.round(position.x);
+    const y = Math.round(position.y);
+    const z = Math.round(position.z);
 
     switch (face) {
       case FacePosition.FRONT:
-        return position.z > threshold;
+        return z === 1;
       case FacePosition.BACK:
-        return position.z < -threshold;
+        return z === -1;
       case FacePosition.LEFT:
-        return position.x < -threshold;
+        return x === -1;
       case FacePosition.RIGHT:
-        return position.x > threshold;
+        return x === 1;
       case FacePosition.UP:
-        return position.y > threshold;
+        return y === 1;
       case FacePosition.DOWN:
-        return position.y < -threshold;
+        return y === -1;
       default:
         return false;
     }
@@ -329,6 +333,10 @@ export class FaceRotationAnimator {
     // Snap to grid positions
     this.snapToGrid(state.facePieces);
 
+    // CRITICAL: Re-initialize face mappings after rotation
+    // This ensures pieces are correctly assigned to their new faces
+    this.initializeFaceMeshes();
+
     state.isComplete = true;
 
     const completedAnimation: CubeAnimation = {
@@ -345,10 +353,10 @@ export class FaceRotationAnimator {
    */
   private snapToGrid(pieces: THREE.Object3D[]): void {
     pieces.forEach(piece => {
-      // Snap position to nearest grid point
-      piece.position.x = Math.round(piece.position.x * 2) / 2;
-      piece.position.y = Math.round(piece.position.y * 2) / 2;
-      piece.position.z = Math.round(piece.position.z * 2) / 2;
+      // Snap position to nearest grid point (more precise snapping)
+      piece.position.x = Math.round(piece.position.x);
+      piece.position.y = Math.round(piece.position.y);
+      piece.position.z = Math.round(piece.position.z);
 
       // Snap rotation to nearest 90-degree increment
       const euler = new THREE.Euler().setFromQuaternion(piece.quaternion);
