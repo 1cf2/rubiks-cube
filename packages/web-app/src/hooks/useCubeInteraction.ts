@@ -21,7 +21,7 @@ interface UseCubeInteractionOptions {
   scene: THREE.Scene | null;
   animationOptions?: Partial<AnimationOptions>;
   onFaceHover?: (_face: FacePosition | null) => void;
-  onFaceSelect?: (_face: FacePosition) => void;
+  onFaceSelect?: (_face: FacePosition, _intersectionPoint?: readonly [number, number, number], _mesh?: any, _hitNormal?: readonly [number, number, number]) => void;
   onRotationStart?: (_command: RotationCommand) => void;
   onRotationUpdate?: (_command: RotationCommand) => void;
   onRotationComplete?: (_command: RotationCommand, _move: Move) => void;
@@ -177,7 +177,21 @@ export function useCubeInteraction(
     }
 
     const selectedFace = raycastResult.data.facePosition;
-    MouseGestureDebugger.trackGestureStep(gestureId, 'FACE_SELECTED', { face: selectedFace });
+    const intersectionPoint = raycastResult.data.point;
+    const clickedMesh = raycastResult.data.mesh;
+    const hitNormal = raycastResult.data.hitNormal;
+    window.console.log('🔍 Raycast result:', { 
+      selectedFace, 
+      intersectionPoint, 
+      clickedMesh: clickedMesh?.uuid,
+      meshPosition: clickedMesh ? { x: clickedMesh.position.x, y: clickedMesh.position.y, z: clickedMesh.position.z } : null,
+      hitNormal,
+      raycastData: raycastResult.data 
+    });
+    MouseGestureDebugger.trackGestureStep(gestureId, 'FACE_SELECTED', { face: selectedFace, intersectionPoint });
+    
+    // Immediate visual feedback - call onFaceSelect right away to show highlighting
+    callbacks.onFaceSelect?.(selectedFace, intersectionPoint, clickedMesh, hitNormal);
     
     setInteractionState(prev => ({
       ...prev,
@@ -191,8 +205,6 @@ export function useCubeInteraction(
       face: selectedFace,
       startAngle: 0,
     };
-
-    callbacks.onFaceSelect?.(selectedFace);
     
     // Store gesture ID in the interaction state for later tracking
     (gesture as any).gestureId = gestureId;

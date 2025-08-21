@@ -16,7 +16,7 @@ export interface FaceHighlightingOptions {
 
 export class FaceHighlighting {
   private scene: THREE.Scene;
-  // Note: cubeGroup and highlightIntensity stored but not currently used in highlighting logic
+  private cubeGroup: THREE.Group;
   private transitionDuration: number;
   private pulseAnimation: boolean;
 
@@ -27,12 +27,14 @@ export class FaceHighlighting {
   private animationMixer: THREE.AnimationMixer | undefined;
   private activeAnimations = new Map<FacePosition, THREE.AnimationAction>();
   private clock = new THREE.Clock();
+  
+  // Track the specific cube piece being highlighted
+  private trackedPiece: THREE.Object3D | null = null;
+  private trackedPieceOriginalPosition: readonly [number, number, number] | null = null;
 
   constructor(options: FaceHighlightingOptions) {
     this.scene = options.scene;
-    // Store options for potential future use
-    // this.cubeGroup = options.cubeGroup;
-    // this.highlightIntensity = options.highlightIntensity ?? 0.3;
+    this.cubeGroup = options.cubeGroup;
     this.transitionDuration = options.transitionDuration ?? 200;
     this.pulseAnimation = options.pulseAnimation ?? true;
 
@@ -51,7 +53,7 @@ export class FaceHighlighting {
     
     faces.forEach(face => {
       const highlightMesh = this.createHighlightMesh(face);
-      this.scene.add(highlightMesh);
+      this.cubeGroup.add(highlightMesh); // Add to cube group instead of scene
       this.highlightMeshes.set(face, highlightMesh);
     });
   }
@@ -60,8 +62,8 @@ export class FaceHighlighting {
    * Create a highlight mesh for a specific face
    */
   private createHighlightMesh(face: FacePosition): THREE.Mesh {
-    // Create geometry slightly larger than the face
-    const geometry = new THREE.PlaneGeometry(1.02, 1.02);
+    // Create geometry to match individual cube piece size exactly
+    const geometry = new THREE.PlaneGeometry(0.95, 0.95);
     
     // Create material with transparency and glow effect
     const material = new THREE.MeshBasicMaterial({
@@ -121,6 +123,82 @@ export class FaceHighlighting {
   }
 
   /**
+   * Position highlight mesh at the specific intersection point
+   */
+  private positionHighlightAtIntersection(
+    mesh: THREE.Mesh, 
+    face: FacePosition, 
+    intersectionPoint: readonly [number, number, number]
+  ): void {
+    const [x, y, z] = intersectionPoint;
+    const offset = 0.002; // Small offset to appear on top of the surface
+    
+    window.console.log('🎯 Positioning highlight:', { 
+      face, 
+      intersectionPoint: [x, y, z],
+      originalCoords: { x, y, z }
+    });
+    
+    // Snap to nearest cube piece grid (3x3 grid spanning from -1 to +1)
+    const snapToGrid = (coord: number): number => {
+      // Grid positions are at -1, 0, +1 (spacing of 1 unit)
+      const gridPositions = [-1, 0, 1];
+      let closest = gridPositions[0]!;
+      let minDistance = Math.abs(coord - closest);
+      
+      for (const pos of gridPositions) {
+        const distance = Math.abs(coord - pos);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = pos;
+        }
+      }
+      
+      return closest;
+    };
+    
+    // Position at snapped grid position with slight offset based on face normal
+    const snappedX = snapToGrid(x);
+    const snappedY = snapToGrid(y);
+    const snappedZ = snapToGrid(z);
+    
+    window.console.log('🎯 Snapped to grid:', { snappedX, snappedY, snappedZ });
+    
+    switch (face) {
+      case FacePosition.FRONT:
+        mesh.position.set(snappedX, snappedY, z + offset);
+        mesh.rotation.set(0, 0, 0); // Parallel to Z plane
+        window.console.log('🎯 FRONT highlight positioned at:', mesh.position);
+        break;
+      case FacePosition.BACK:
+        mesh.position.set(snappedX, snappedY, z - offset);
+        mesh.rotation.set(0, 0, 0); // Parallel to Z plane
+        window.console.log('🎯 BACK highlight positioned at:', mesh.position);
+        break;
+      case FacePosition.LEFT:
+        mesh.position.set(x - offset, snappedY, snappedZ);
+        mesh.rotation.set(0, Math.PI / 2, 0); // Parallel to YZ plane
+        window.console.log('🎯 LEFT highlight positioned at:', mesh.position);
+        break;
+      case FacePosition.RIGHT:
+        mesh.position.set(x + offset, snappedY, snappedZ);
+        mesh.rotation.set(0, -Math.PI / 2, 0); // Parallel to YZ plane
+        window.console.log('🎯 RIGHT highlight positioned at:', mesh.position);
+        break;
+      case FacePosition.UP:
+        mesh.position.set(snappedX, y + offset, snappedZ);
+        mesh.rotation.set(Math.PI / 2, 0, 0); // Parallel to XZ plane
+        window.console.log('🎯 UP highlight positioned at:', mesh.position);
+        break;
+      case FacePosition.DOWN:
+        mesh.position.set(snappedX, y - offset, snappedZ);
+        mesh.rotation.set(-Math.PI / 2, 0, 0); // Parallel to XZ plane
+        window.console.log('🎯 DOWN highlight positioned at:', mesh.position);
+        break;
+    }
+  }
+
+  /**
    * Apply visual feedback to a face
    */
   applyFeedback(feedback: VisualFeedback): CubeOperationResult<void> {
@@ -138,6 +216,57 @@ export class FaceHighlighting {
 
       // Stop any existing animation for this face
       this.stopAnimation(feedback.face);
+
+      // Use target mesh directly if provided (most accurate)
+      if (feedback.targetMesh) {
+        this.trackedPiece = feedback.targetMesh;
+        this.trackedPieceOriginalPosition = [
+          feedback.targetMesh.position.x,
+          feedback.targetMesh.position.y,
+          feedback.targetMesh.position.z
+        ] as const;
+        
+        const piecePosition: readonly [number, number, number] = [
+          feedback.targetMesh.position.x,
+          feedback.targetMesh.position.y,
+          feedback.targetMesh.position.z
+        ];
+        
+        window.console.log('🎯 Using target mesh directly:', {
+          meshUuid: feedback.targetMesh.uuid,
+          position: piecePosition,
+          face: feedback.face,
+          intersectionPoint: feedback.intersectionPoint
+        });
+        
+        // Keep it simple - just use the face that was detected by raycasting
+        // The raycasting system already determined which face was clicked
+        window.console.log('🎯 Using simple face-based approach');
+        this.positionHighlightAtPiecePosition(highlightMesh, feedback.face, piecePosition);
+      }
+      // Track the specific piece if intersection point is provided (fallback)
+      else if (feedback.intersectionPoint) {
+        this.trackPieceAtIntersection(feedback.intersectionPoint);
+        
+        // Use the tracked piece's exact position instead of the intersection point
+        if (this.trackedPiece) {
+          const piecePosition: readonly [number, number, number] = [
+            this.trackedPiece.position.x,
+            this.trackedPiece.position.y,
+            this.trackedPiece.position.z
+          ];
+          this.positionHighlightAtPiecePosition(highlightMesh, feedback.face, piecePosition);
+        } else {
+          // Fallback to intersection point if piece tracking failed
+          this.positionHighlightAtIntersection(highlightMesh, feedback.face, feedback.intersectionPoint);
+        }
+      } else if (feedback.piecePosition) {
+        // Use tracked piece position if available
+        this.positionHighlightAtPiecePosition(highlightMesh, feedback.face, feedback.piecePosition);
+      } else {
+        // Fall back to default face center positioning
+        this.positionHighlightMesh(highlightMesh, feedback.face);
+      }
 
       switch (feedback.state) {
         case 'normal':
@@ -175,12 +304,122 @@ export class FaceHighlighting {
   }
 
   /**
+   * Track the cube piece at the intersection point
+   */
+  private trackPieceAtIntersection(intersectionPoint: readonly [number, number, number]): void {
+    const [x, y, z] = intersectionPoint;
+    
+    // Find the cube piece closest to the intersection point
+    let closestPiece: THREE.Mesh | null = null;
+    let minDistance = Infinity;
+    
+    this.cubeGroup.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const distance = child.position.distanceTo(new THREE.Vector3(x, y, z));
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestPiece = child;
+        }
+      }
+    });
+    
+    if (closestPiece !== null) {
+      const piece = closestPiece as THREE.Mesh;
+      this.trackedPiece = piece;
+      this.trackedPieceOriginalPosition = [
+        piece.position.x,
+        piece.position.y,
+        piece.position.z
+      ] as const;
+      
+      window.console.log('🎯 Tracking piece:', {
+        piece: piece.uuid,
+        position: this.trackedPieceOriginalPosition
+      });
+    }
+  }
+
+
+  /**
+   * Position highlight at the current tracked piece position on the correct face surface
+   */
+  private positionHighlightAtPiecePosition(
+    mesh: THREE.Mesh,
+    face: FacePosition,
+    piecePosition: readonly [number, number, number]
+  ): void {
+    const [x, y, z] = piecePosition;
+    const offset = 0.502; // Half cube size (0.95/2) + small buffer to appear on surface
+    
+    window.console.log('🎯 Positioning highlight at tracked piece surface:', { face, piecePosition: [x, y, z] });
+    
+    // Position highlight on the specific face surface of the piece
+    switch (face) {
+      case FacePosition.FRONT:
+        mesh.position.set(x, y, z + offset);
+        mesh.rotation.set(0, 0, 0);
+        window.console.log('🎯 FRONT surface highlight at:', { x, y, z: z + offset });
+        break;
+      case FacePosition.BACK:
+        mesh.position.set(x, y, z - offset);
+        mesh.rotation.set(0, Math.PI, 0);
+        window.console.log('🎯 BACK surface highlight at:', { x, y, z: z - offset });
+        break;
+      case FacePosition.LEFT:
+        mesh.position.set(x - offset, y, z);
+        mesh.rotation.set(0, -Math.PI / 2, 0);
+        window.console.log('🎯 LEFT surface highlight at:', { x: x - offset, y, z });
+        break;
+      case FacePosition.RIGHT:
+        mesh.position.set(x + offset, y, z);
+        mesh.rotation.set(0, Math.PI / 2, 0);
+        window.console.log('🎯 RIGHT surface highlight at:', { x: x + offset, y, z });
+        break;
+      case FacePosition.UP:
+        mesh.position.set(x, y + offset, z);
+        mesh.rotation.set(-Math.PI / 2, 0, 0);
+        window.console.log('🎯 UP surface highlight at:', { x, y: y + offset, z });
+        break;
+      case FacePosition.DOWN:
+        mesh.position.set(x, y - offset, z);
+        mesh.rotation.set(Math.PI / 2, 0, 0);
+        window.console.log('🎯 DOWN surface highlight at:', { x, y: y - offset, z });
+        break;
+    }
+  }
+
+  /**
+   * Get the current position of the tracked piece
+   */
+  getCurrentTrackedPiecePosition(): readonly [number, number, number] | null {
+    if (!this.trackedPiece) {
+      return null;
+    }
+    
+    return [
+      this.trackedPiece.position.x,
+      this.trackedPiece.position.y,
+      this.trackedPiece.position.z
+    ] as const;
+  }
+
+  /**
+   * Clear piece tracking
+   */
+  clearTrackedPiece(): void {
+    this.trackedPiece = null;
+    this.trackedPieceOriginalPosition = null;
+  }
+
+  /**
    * Set normal state (no highlight)
    */
   private setNormalState(mesh: THREE.Mesh, material: THREE.MeshBasicMaterial): void {
     mesh.visible = false;
     material.opacity = 0;
     material.color.setHex(0xffffff);
+    // Clear piece tracking when highlight is removed
+    this.clearTrackedPiece();
   }
 
   /**
@@ -203,7 +442,7 @@ export class FaceHighlighting {
   }
 
   /**
-   * Set selected state (orange glow)
+   * Set selected state (orange glow with immediate feedback)
    */
   private setSelectedState(
     mesh: THREE.Mesh, 
@@ -212,16 +451,17 @@ export class FaceHighlighting {
   ): void {
     mesh.visible = true;
     
-    const targetOpacity = feedback.opacity ?? 0.4;
-    const color = feedback.color ?? [1.0, 0.6, 0.1];
+    const targetOpacity = feedback.opacity ?? 0.8; // High opacity for clear mouse down feedback
+    const color = feedback.color ?? [1.0, 0.5, 0.0]; // Pure orange for gesture start
     
     material.color.setRGB(...color);
     
-    // Animate to target opacity with slight pulse if enabled
-    this.animateOpacity(mesh, material, targetOpacity, this.transitionDuration);
+    // Immediate feedback - set opacity instantly, then animate to maintain responsiveness
+    material.opacity = targetOpacity * 0.8; // Start at 80% of target
+    this.animateOpacity(mesh, material, targetOpacity, this.transitionDuration / 2); // Faster animation
     
-    if (this.pulseAnimation) {
-      this.startPulseAnimation(feedback.face, material, targetOpacity);
+    if (this.pulseAnimation || feedback.pulse) {
+      this.startPulseAnimation(feedback.face, material, targetOpacity, 200); // Slightly faster pulse
     }
   }
 
@@ -466,7 +706,7 @@ export class FaceHighlighting {
           mesh.material.dispose();
         }
       }
-      this.scene.remove(mesh);
+      this.cubeGroup.remove(mesh); // Remove from cube group instead of scene
     });
 
     this.highlightMeshes.clear();

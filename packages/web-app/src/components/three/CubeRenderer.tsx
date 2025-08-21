@@ -3,7 +3,7 @@ import {
   Scene,
   Group, 
   BoxGeometry, 
-  MeshLambertMaterial, 
+  MeshPhongMaterial, 
   Mesh,
   Material
 } from 'three';
@@ -29,15 +29,15 @@ export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating =
     // Individual cube piece geometry
     const geometry = new BoxGeometry(0.95, 0.95, 0.95);
 
-    // Standard Rubik's cube color materials
+    // Standard Rubik's cube color materials with Phong shading for better lighting
     const materials = {
-      white: new MeshLambertMaterial({ color: CUBE_COLORS.WHITE }),
-      red: new MeshLambertMaterial({ color: CUBE_COLORS.RED }),
-      blue: new MeshLambertMaterial({ color: CUBE_COLORS.BLUE }),
-      orange: new MeshLambertMaterial({ color: CUBE_COLORS.ORANGE }),
-      green: new MeshLambertMaterial({ color: CUBE_COLORS.GREEN }),
-      yellow: new MeshLambertMaterial({ color: CUBE_COLORS.YELLOW }),
-      black: new MeshLambertMaterial({ color: 0x000000 }) // For internal faces
+      white: new MeshPhongMaterial({ color: CUBE_COLORS.WHITE, shininess: 30 }),
+      red: new MeshPhongMaterial({ color: CUBE_COLORS.RED, shininess: 30 }),
+      blue: new MeshPhongMaterial({ color: CUBE_COLORS.BLUE, shininess: 30 }),
+      orange: new MeshPhongMaterial({ color: CUBE_COLORS.ORANGE, shininess: 30 }),
+      green: new MeshPhongMaterial({ color: CUBE_COLORS.GREEN, shininess: 30 }),
+      yellow: new MeshPhongMaterial({ color: CUBE_COLORS.YELLOW, shininess: 30 }),
+      black: new MeshPhongMaterial({ color: 0x000000, shininess: 10 }) // For internal faces
     };
 
     // Create 27 cube pieces in 3x3x3 grid formation

@@ -116,9 +116,10 @@ const CubeSceneContent: React.FC = () => {
     <>
       <CubeRenderer 
         scene={scene} 
-        isAnimating={true} 
+        isAnimating={false} 
         onCubeGroupReady={handleCubeGroupReady}
       />
+      
       <MouseControls
         camera={camera}
         scene={scene}
@@ -129,6 +130,7 @@ const CubeSceneContent: React.FC = () => {
         enableCompletionFeedback={true}
         enableInvalidMovePrevention={true}
         allowConcurrentAnimations={false}
+        enableCameraControls={true}
         onFaceHover={handleFaceHover}
         onFaceSelect={handleFaceSelect}
         onRotationStart={handleRotationStart}

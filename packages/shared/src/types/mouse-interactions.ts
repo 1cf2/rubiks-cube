@@ -33,6 +33,8 @@ export interface FaceIntersection {
   readonly point: readonly [number, number, number]; // 3D intersection point
   readonly normal: readonly [number, number, number]; // Face normal vector
   readonly distance: number;
+  readonly mesh?: any; // The actual Three.js mesh that was clicked (optional for backward compatibility)
+  readonly hitNormal?: readonly [number, number, number]; // The actual surface normal that was hit by raycasting
 }
 
 export interface DragGesture {
@@ -79,6 +81,10 @@ export interface VisualFeedback {
   readonly color?: readonly [number, number, number]; // RGB values 0-1
   readonly pulse?: boolean; // Enable pulsing animation
   readonly intensity?: number; // Overall feedback intensity multiplier
+  readonly intersectionPoint?: readonly [number, number, number]; // 3D point where interaction occurred
+  readonly piecePosition?: readonly [number, number, number]; // Current position of the tracked piece
+  readonly targetMesh?: any; // The specific mesh to highlight (optional)
+  readonly hitNormal?: readonly [number, number, number]; // The surface normal that was actually hit
 }
 
 export interface MouseInteractionState {

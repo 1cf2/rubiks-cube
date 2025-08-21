@@ -123,14 +123,24 @@ export const ThreeSceneProvider: React.FC<ThreeSceneProps> = ({ children }) => {
       setLoadingProgress(75);
       setLoadingMessage('Setting up lighting...');
       
-      // Ambient light for overall illumination
-      const ambientLight = new AmbientLight(0x404040, 0.6);
+      // Brighter ambient light for better overall illumination from all angles
+      const ambientLight = new AmbientLight(0x404040, 0.8); // Increased from 0.6 to 0.8
       scene.add(ambientLight);
 
-      // Directional light for face definition
-      const directionalLight = new DirectionalLight(0xffffff, 0.8);
-      directionalLight.position.set(10, 10, 5);
-      scene.add(directionalLight);
+      // Main directional light from front-top-right
+      const directionalLight1 = new DirectionalLight(0xffffff, 0.6); // Reduced intensity since we'll add more lights
+      directionalLight1.position.set(10, 10, 5);
+      scene.add(directionalLight1);
+
+      // Secondary directional light from back-top-left for better coverage
+      const directionalLight2 = new DirectionalLight(0xffffff, 0.4);
+      directionalLight2.position.set(-8, 8, -5);
+      scene.add(directionalLight2);
+
+      // Third light from side for even illumination
+      const directionalLight3 = new DirectionalLight(0xffffff, 0.3);
+      directionalLight3.position.set(5, -5, 10);
+      scene.add(directionalLight3);
 
       // Loading step 6: DOM integration
       setLoadingProgress(90);

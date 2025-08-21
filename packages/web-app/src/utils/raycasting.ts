@@ -63,6 +63,65 @@ export class RaycastingUtils {
   }
 
   /**
+   * Determines which specific face was clicked based on the intersection point and piece position
+   */
+  private static getClickedFace(
+    mesh: THREE.Mesh, 
+    intersectionPoint: THREE.Vector3
+  ): FacePosition | null {
+    const piecePos = mesh.position;
+    
+    // Calculate relative position of intersection to piece center
+    const relativeX = intersectionPoint.x - piecePos.x;
+    const relativeY = intersectionPoint.y - piecePos.y;
+    const relativeZ = intersectionPoint.z - piecePos.z;
+    
+    // Cube pieces are 0.95 units, so surface is at ±0.475 from center
+    const surfaceThreshold = 0.4; // Slightly less than 0.475 to account for precision
+    
+    window.console.log('🎯 Determining clicked face:', {
+      piecePosition: { x: piecePos.x, y: piecePos.y, z: piecePos.z },
+      intersectionPoint: { x: intersectionPoint.x, y: intersectionPoint.y, z: intersectionPoint.z },
+      relative: { x: relativeX, y: relativeY, z: relativeZ },
+      surfaceThreshold
+    });
+    
+    // Check which face surface the intersection is closest to
+    if (relativeX > surfaceThreshold) return FacePosition.RIGHT;
+    if (relativeX < -surfaceThreshold) return FacePosition.LEFT;
+    if (relativeY > surfaceThreshold) return FacePosition.UP;
+    if (relativeY < -surfaceThreshold) return FacePosition.DOWN;
+    if (relativeZ > surfaceThreshold) return FacePosition.FRONT;
+    if (relativeZ < -surfaceThreshold) return FacePosition.BACK;
+    
+    // Fallback to primary face if intersection is too close to center
+    return this.getPrimaryFaceFromPosition(mesh);
+  }
+
+  /**
+   * Determines the primary visible face of a cube piece based on its position (fallback method)
+   */
+  private static getPrimaryFaceFromPosition(mesh: THREE.Mesh): FacePosition | null {
+    const position = mesh.position;
+    
+    // Round to handle floating point precision
+    const x = Math.round(position.x);
+    const y = Math.round(position.y);
+    const z = Math.round(position.z);
+    
+    // Determine which face this piece primarily belongs to
+    // Priority: front > back > right > left > up > down (to match naming logic)
+    if (z === 1) return FacePosition.FRONT;
+    if (z === -1) return FacePosition.BACK;
+    if (x === 1) return FacePosition.RIGHT;
+    if (x === -1) return FacePosition.LEFT;
+    if (y === 1) return FacePosition.UP;
+    if (y === -1) return FacePosition.DOWN;
+    
+    return null;
+  }
+
+  /**
    * Gets the normal vector for a cube face
    */
   private static getFaceNormal(face: FacePosition): readonly [number, number, number] {
@@ -116,12 +175,30 @@ export class RaycastingUtils {
       // Find intersections with cube meshes
       const intersects = this.raycaster.intersectObjects(scene.children, options.recursive);
 
-      // Filter for cube face meshes only
+      // Filter for cube meshes and get their face positions
       const cubeIntersects = intersects.filter(intersect => {
         const mesh = intersect.object as THREE.Mesh;
-        const facePosition = this.getFacePosition(mesh);
-        return mesh.isMesh && facePosition !== null;
-      });
+        return mesh.isMesh && mesh.geometry && mesh.position;
+      }).map(intersect => {
+        const mesh = intersect.object as THREE.Mesh;
+        let facePosition = this.getFacePosition(mesh);
+        
+        // If name-based lookup fails, use the intersection point to determine which face was clicked
+        if (!facePosition) {
+          facePosition = this.getClickedFace(mesh, intersect.point);
+        }
+        
+        // Final fallback to position-based lookup
+        if (!facePosition) {
+          facePosition = this.getPrimaryFaceFromPosition(mesh);
+        }
+        
+        return {
+          ...intersect,
+          facePosition,
+          mesh
+        };
+      }).filter(item => item.facePosition !== null);
 
       if (cubeIntersects.length === 0) {
         return { success: true, data: null };
@@ -129,22 +206,32 @@ export class RaycastingUtils {
 
       // Get the closest intersection
       const closest = cubeIntersects[0];
-      if (!closest) {
+      if (!closest || !closest.facePosition) {
         return { success: true, data: null };
       }
       
-      const mesh = closest.object as THREE.Mesh;
-      const facePosition = this.getFacePosition(mesh);
+      const mesh = closest.mesh;
+      const facePosition = closest.facePosition;
 
-      if (!facePosition) {
-        return { success: true, data: null };
-      }
+      // Debug logging for raycast results
+      window.console.log('🎯 Raycasting result:', {
+        meshName: mesh.name,
+        meshPosition: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+        intersectionPoint: [closest.point.x, closest.point.y, closest.point.z],
+        detectedFace: facePosition,
+        userData: mesh.userData,
+        faceIndex: closest.face?.materialIndex,
+        faceNormal: closest.face ? [closest.face.normal.x, closest.face.normal.y, closest.face.normal.z] : null,
+        distance: closest.distance
+      });
 
       const intersection: FaceIntersection = {
         facePosition,
         point: [closest.point.x, closest.point.y, closest.point.z] as const,
         normal: this.getFaceNormal(facePosition),
         distance: closest.distance,
+        mesh: mesh, // Include the actual mesh that was clicked
+        ...(closest.face && { hitNormal: [closest.face.normal.x, closest.face.normal.y, closest.face.normal.z] as const }),
       };
 
       return { success: true, data: intersection };
