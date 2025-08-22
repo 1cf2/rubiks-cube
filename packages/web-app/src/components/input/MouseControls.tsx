@@ -320,10 +320,78 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     // Clear any existing layer highlights first
     clearLayerHighlights();
     
-    // Determine which layer will be affected using the stored clicked piece position
+    // Smart layer selection: prefer more natural face selection for corner/edge pieces
+    const [x, y, z] = selectedPiecePosition;
+    const roundedX = Math.round(x);
+    const roundedY = Math.round(y);
+    const roundedZ = Math.round(z);
+    
+    // Check if this is a corner or edge piece (not center piece)
+    const isCornerPiece = [roundedX, roundedY, roundedZ].filter(coord => coord !== 0).length === 3;
+    const isEdgePiece = [roundedX, roundedY, roundedZ].filter(coord => coord !== 0).length === 2;
+    const isMultiFacePiece = isCornerPiece || isEdgePiece;
+    
+    let selectedFace = command.face;
+    
+    // For multi-face pieces, apply smart face selection based on physical cube behavior
+    if (isMultiFacePiece) {
+      window.console.log('🎯 Multi-face piece detected, applying smart face selection:', {
+        position: [roundedX, roundedY, roundedZ],
+        detectedFace: command.face,
+        isCorner: isCornerPiece,
+        isEdge: isEdgePiece
+      });
+      
+      // Get all possible faces for this piece position
+      const possibleFaces: FacePosition[] = [];
+      if (roundedX === -1) possibleFaces.push(FacePosition.LEFT);
+      if (roundedX === 1) possibleFaces.push(FacePosition.RIGHT);
+      if (roundedY === -1) possibleFaces.push(FacePosition.DOWN);
+      if (roundedY === 1) possibleFaces.push(FacePosition.UP);
+      if (roundedZ === -1) possibleFaces.push(FacePosition.BACK);
+      if (roundedZ === 1) possibleFaces.push(FacePosition.FRONT);
+      
+      // Priority-based face selection for more natural interaction:
+      // 1. Keep the detected face if it's a side face (front/back/left/right)
+      // 2. If detected face is top/bottom, prefer side faces
+      // 3. Priority order: FRONT > LEFT > RIGHT > BACK > UP > DOWN
+      const faceOrder = [
+        FacePosition.FRONT, 
+        FacePosition.LEFT, 
+        FacePosition.RIGHT, 
+        FacePosition.BACK, 
+        FacePosition.UP, 
+        FacePosition.DOWN
+      ];
+      
+      // If the detected face is already a high-priority face and exists on this piece, keep it
+      const isSideFace = [FacePosition.FRONT, FacePosition.BACK, FacePosition.LEFT, FacePosition.RIGHT].includes(command.face);
+      if (isSideFace && possibleFaces.includes(command.face)) {
+        selectedFace = command.face; // Keep the original selection
+      } else {
+        // Otherwise, select the highest priority available face
+        for (const face of faceOrder) {
+          if (possibleFaces.includes(face)) {
+            selectedFace = face;
+            break;
+          }
+        }
+      }
+      
+      if (selectedFace !== command.face) {
+        window.console.log('🎯 Overriding face selection:', {
+          original: command.face,
+          selected: selectedFace,
+          availableFaces: possibleFaces,
+          reason: isSideFace ? 'top/bottom -> side preference' : 'priority ordering'
+        });
+      }
+    }
+    
+    // Determine which layer will be affected using the (potentially overridden) face
     const layerInfo = LayerDetection.getLayerPieces(
       selectedPiecePosition,
-      command.face,
+      selectedFace,
       command.direction
     );
     
@@ -343,12 +411,12 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     // Create individual highlight meshes for each piece in the layer
     // Only highlight the rotating face to avoid visual clutter and overlapping
     layerMeshes.forEach((cubeMesh, index) => {
-      const visibleFaces = LayerDetection.getVisibleFacesForPiece(cubeMesh.position, command.face);
+      const visibleFaces = LayerDetection.getVisibleFacesForPiece(cubeMesh.position, selectedFace);
       
       // Only highlight faces that are actually visible and prioritize the rotating face
       const facesToHighlight = visibleFaces.filter(face => {
         // Always include the rotating face
-        if (face === command.face) return true;
+        if (face === selectedFace) return true;
         
         // For other faces, only include them if they're on the outer edge of the cube
         const pos = cubeMesh.position;
@@ -374,9 +442,9 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         // Create highlight geometry matching the piece size
         const highlightGeometry = new THREE.PlaneGeometry(0.95, 0.95);
         const highlightMaterial = new THREE.MeshBasicMaterial({
-          color: face === command.face ? 0xffcc00 : 0x66ccff, // Orange for main face, blue for others
+          color: face === selectedFace ? 0xffcc00 : 0x66ccff, // Orange for main face, blue for others
           transparent: true,
-          opacity: face === command.face ? 0.5 : 0.3,
+          opacity: face === selectedFace ? 0.5 : 0.3,
           side: THREE.FrontSide, // Only render front side to avoid double faces
           depthTest: true, // Enable depth testing to prevent overlap issues
           depthWrite: false,
