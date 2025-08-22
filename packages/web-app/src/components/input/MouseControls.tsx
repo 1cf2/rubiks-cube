@@ -19,7 +19,7 @@ import { DebugOverlay } from '../debug/DebugOverlay';
 import { isOverlayEnabled } from '../../utils/featureFlags';
 import { DebugLogger } from '../../utils/debugLogger';
 import { useCameraControls } from '../../hooks/useCameraControls';
-import { LayerDetection } from '../../utils/layerDetection';
+import { GestureLayerDetection, GestureLayerInfo } from '../../utils/gestureLayerDetection';
 
 export interface MouseControlsProps {
   camera: THREE.Camera | null;
@@ -70,7 +70,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visualFeedback, setVisualFeedback] = useState<Map<FacePosition, VisualFeedback>>(new Map());
-  const [selectedPiecePosition, setSelectedPiecePosition] = useState<readonly [number, number, number] | null>(null);
+  const [startPiecePosition, setStartPiecePosition] = useState<readonly [number, number, number] | null>(null);
   // eslint-disable-next-line no-unused-vars
   const checkMoveValidityRef = useRef<((face: FacePosition) => boolean) | null>(null);
   
@@ -152,9 +152,18 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         return; // Block the selection if move is invalid
       }
       
-      // Store the clicked piece position for layer detection
+      // Store the start piece position for gesture-based layer detection
       if (mesh && mesh.position) {
-        setSelectedPiecePosition([mesh.position.x, mesh.position.y, mesh.position.z] as const);
+        const startPos = [mesh.position.x, mesh.position.y, mesh.position.z] as const;
+        window.console.log('🎯 🔴 Face selected - storing start position:', {
+          face,
+          startPos,
+          meshName: mesh.name,
+          meshUuid: mesh.uuid
+        });
+        setStartPiecePosition(startPos);
+      } else {
+        window.console.log('🎯 ⚠️ Face selected but no mesh/position:', { face, hasMesh: !!mesh });
       }
       
       updateVisualFeedback(face, 'selected', intersectionPoint, mesh, hitNormal);
@@ -177,13 +186,43 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       updateVisualFeedback(command.face, 'rotating');
       onRotationStart?.(command);
     },
-    onRotationUpdate: (command) => {
-      // When user starts dragging and we have a rotation direction, highlight the entire layer
-      window.console.log('🎯 onRotationUpdate called:', command.face, command.direction, 'recalculate:', command.recalculateLayer);
+    onRotationUpdate: (command, dragInfo) => {
+      // When user drags, use gesture-based layer detection
+      window.console.log('🎯 🔵 onRotationUpdate called:', {
+        commandFace: command.face,
+        direction: command.direction,
+        dragInfo,
+        hasStartPosition: !!startPiecePosition,
+        startPiecePosition
+      });
       
-      // Always update layer highlighting, especially when recalculateLayer is true
-      if (command.recalculateLayer || !layerHighlightMeshesRef.current.length) {
-        updateLayerHighlight(command);
+      // If we have drag information, detect layer from gesture
+      if (dragInfo && dragInfo.currentMesh && startPiecePosition) {
+        const currentPos = [dragInfo.currentMesh.position.x, dragInfo.currentMesh.position.y, dragInfo.currentMesh.position.z] as const;
+        
+        window.console.log('🎯 🔶 Attempting gesture layer detection:', {
+          startPos: startPiecePosition,
+          currentPos,
+          currentMeshName: dragInfo.currentMesh.name,
+          currentMeshUuid: dragInfo.currentMesh.uuid
+        });
+        
+        // Detect layer from gesture between start and current position
+        const gestureLayerInfo = GestureLayerDetection.detectLayerFromGesture(startPiecePosition, currentPos);
+        
+        if (gestureLayerInfo) {
+          window.console.log('🎯 ✅ Gesture layer detected:', gestureLayerInfo);
+          updateGestureLayerHighlight(gestureLayerInfo);
+        } else {
+          window.console.log('🎯 ❌ No gesture layer detected');
+        }
+      } else {
+        window.console.log('🎯 ⚠️ Missing requirements for gesture detection:', {
+          hasDragInfo: !!dragInfo,
+          hasCurrentMesh: !!(dragInfo && dragInfo.currentMesh),
+          hasStartPosition: !!startPiecePosition,
+          dragInfo
+        });
       }
     },
     onRotationComplete: (command, move) => {
@@ -196,8 +235,8 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       // Clear layer highlights
       clearLayerHighlights();
       
-      // Clear selected piece position
-      setSelectedPiecePosition(null);
+      // Clear gesture positions
+      setStartPiecePosition(null);
       
       // Show completion feedback
       if (enableCompletionFeedback) {
@@ -288,251 +327,48 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
 
   // Clear temporary layer highlights
   const clearLayerHighlights = useCallback(() => {
-    layerHighlightMeshesRef.current.forEach(mesh => {
-      if (mesh.parent) {
-        mesh.parent.remove(mesh);
-      }
-      // Clean up geometry and material
-      if (mesh.geometry) mesh.geometry.dispose();
-      if (mesh.material) {
-        if (Array.isArray(mesh.material)) {
-          mesh.material.forEach(mat => mat.dispose());
-        } else {
-          mesh.material.dispose();
-        }
-      }
+    window.console.log('🎯 🧹 clearLayerHighlights called:', {
+      currentHighlights: layerHighlightMeshesRef.current.length,
+      highlightNames: layerHighlightMeshesRef.current.map(m => m.name)
     });
+    
+    // Use the new gesture layer detection cleanup
+    GestureLayerDetection.cleanupHighlights(layerHighlightMeshesRef.current);
     layerHighlightMeshesRef.current = [];
+    
+    window.console.log('🎯 ✅ Layer highlights cleared');
   }, []);
 
-  // Update layer highlight for rotation preview
-  const updateLayerHighlight = useCallback((command: RotationCommand) => {
-    window.console.log('🎯 updateLayerHighlight called with:', {
+  // Update layer highlight using gesture-based detection
+  const updateGestureLayerHighlight = useCallback((layerInfo: GestureLayerInfo) => {
+    window.console.log('🎯 🔸 updateGestureLayerHighlight called:', {
+      layerInfo,
       hasScene: !!scene,
       hasCubeGroup: !!cubeGroup,
-      selectedFace: interactionState.selectedFace,
-      selectedPiecePosition,
-      commandFace: command.face,
-      commandDirection: command.direction,
-      recalculateLayer: command.recalculateLayer
+      sceneChildren: scene ? scene.children.length : 0,
+      cubeGroupChildren: cubeGroup ? cubeGroup.children.length : 0
     });
     
-    if (!scene || !cubeGroup || !interactionState.selectedFace) {
-      window.console.warn('🎯 Layer highlighting: Missing dependencies');
-      return;
-    }
-
-    // Use selected piece position for layer calculation
-    // For recalculated layers, we'll use the current piece position from raycasting
-    let piecePositionForLayer = selectedPiecePosition;
-    
-    // If recalculating layer and we don't have selectedPiecePosition, raycast at current mouse position
-    if (command.recalculateLayer && !piecePositionForLayer) {
-      // We'll use the command.face to determine a representative piece position
-      // This is a fallback when selectedPiecePosition is not available
-      switch (command.face) {
-        case FacePosition.FRONT:
-          piecePositionForLayer = [0, 0, 1] as const;
-          break;
-        case FacePosition.BACK:
-          piecePositionForLayer = [0, 0, -1] as const;
-          break;
-        case FacePosition.LEFT:
-          piecePositionForLayer = [-1, 0, 0] as const;
-          break;
-        case FacePosition.RIGHT:
-          piecePositionForLayer = [1, 0, 0] as const;
-          break;
-        case FacePosition.UP:
-          piecePositionForLayer = [0, 1, 0] as const;
-          break;
-        case FacePosition.DOWN:
-          piecePositionForLayer = [0, -1, 0] as const;
-          break;
-      }
-    }
-    
-    if (!piecePositionForLayer) {
-      window.console.warn('🎯 Layer highlighting: No piece position available');
+    if (!scene || !cubeGroup) {
+      window.console.warn('🎯 ⚠️ Gesture layer highlighting: Missing dependencies');
       return;
     }
     
     // Clear any existing layer highlights first
+    window.console.log('🎯 🧹 Clearing existing highlights...');
     clearLayerHighlights();
     
-    // Smart layer selection: prefer more natural face selection for corner/edge pieces
-    const [x, y, z] = piecePositionForLayer;
-    const roundedX = Math.round(x);
-    const roundedY = Math.round(y);
-    const roundedZ = Math.round(z);
+    // Create highlight meshes using the gesture layer detection system
+    window.console.log('🎯 ✨ Creating new highlight meshes...');
+    const highlightMeshes = GestureLayerDetection.createLayerHighlights(scene, cubeGroup, layerInfo);
+    layerHighlightMeshesRef.current = highlightMeshes;
     
-    // Check if this is a corner or edge piece (not center piece)
-    const isCornerPiece = [roundedX, roundedY, roundedZ].filter(coord => coord !== 0).length === 3;
-    const isEdgePiece = [roundedX, roundedY, roundedZ].filter(coord => coord !== 0).length === 2;
-    const isMultiFacePiece = isCornerPiece || isEdgePiece;
-    
-    let selectedFace = command.face;
-    
-    // For multi-face pieces, apply smart face selection based on physical cube behavior
-    if (isMultiFacePiece) {
-      window.console.log('🎯 Multi-face piece detected, applying smart face selection:', {
-        position: [roundedX, roundedY, roundedZ],
-        detectedFace: command.face,
-        isCorner: isCornerPiece,
-        isEdge: isEdgePiece
-      });
-      
-      // Get all possible faces for this piece position
-      const possibleFaces: FacePosition[] = [];
-      if (roundedX === -1) possibleFaces.push(FacePosition.LEFT);
-      if (roundedX === 1) possibleFaces.push(FacePosition.RIGHT);
-      if (roundedY === -1) possibleFaces.push(FacePosition.DOWN);
-      if (roundedY === 1) possibleFaces.push(FacePosition.UP);
-      if (roundedZ === -1) possibleFaces.push(FacePosition.BACK);
-      if (roundedZ === 1) possibleFaces.push(FacePosition.FRONT);
-      
-      // Priority-based face selection for more natural interaction:
-      // 1. Keep the detected face if it's a side face (front/back/left/right)
-      // 2. If detected face is top/bottom, prefer side faces
-      // 3. Priority order: FRONT > LEFT > RIGHT > BACK > UP > DOWN
-      const faceOrder = [
-        FacePosition.FRONT, 
-        FacePosition.LEFT, 
-        FacePosition.RIGHT, 
-        FacePosition.BACK, 
-        FacePosition.UP, 
-        FacePosition.DOWN
-      ];
-      
-      // If the detected face is already a high-priority face and exists on this piece, keep it
-      const isSideFace = [FacePosition.FRONT, FacePosition.BACK, FacePosition.LEFT, FacePosition.RIGHT].includes(command.face);
-      if (isSideFace && possibleFaces.includes(command.face)) {
-        selectedFace = command.face; // Keep the original selection
-      } else {
-        // Otherwise, select the highest priority available face
-        for (const face of faceOrder) {
-          if (possibleFaces.includes(face)) {
-            selectedFace = face;
-            break;
-          }
-        }
-      }
-      
-      if (selectedFace !== command.face) {
-        window.console.log('🎯 Overriding face selection:', {
-          original: command.face,
-          selected: selectedFace,
-          availableFaces: possibleFaces,
-          reason: isSideFace ? 'top/bottom -> side preference' : 'priority ordering'
-        });
-      }
-    }
-    
-    // Determine which layer will be affected using the (potentially overridden) face
-    const layerInfo = LayerDetection.getLayerPieces(
-      piecePositionForLayer,
-      selectedFace,
-      command.direction
-    );
-    
-    window.console.log('🎯 Layer info:', layerInfo);
-    
-    // Get all meshes in this layer
-    const layerMeshes = LayerDetection.findLayerMeshes(scene, layerInfo);
-    
-    window.console.log('🎯 Found layer meshes:', layerMeshes.length);
-    
-    // Debug: Check if we're finding meshes
-    if (layerMeshes.length === 0) {
-      window.console.warn('🎯 Layer highlighting: No meshes found for layer');
-      return;
-    }
-    
-    // Create individual highlight meshes for each piece in the layer
-    // Only highlight the rotating face to avoid visual clutter and overlapping
-    layerMeshes.forEach((cubeMesh, index) => {
-      const visibleFaces = LayerDetection.getVisibleFacesForPiece(cubeMesh.position, selectedFace);
-      
-      // Only highlight faces that are actually visible and prioritize the rotating face
-      const facesToHighlight = visibleFaces.filter(face => {
-        // Always include the rotating face
-        if (face === selectedFace) return true;
-        
-        // For other faces, only include them if they're on the outer edge of the cube
-        const pos = cubeMesh.position;
-        switch (face) {
-          case FacePosition.FRONT:
-            return Math.round(pos.z) === 1;
-          case FacePosition.BACK:
-            return Math.round(pos.z) === -1;
-          case FacePosition.LEFT:
-            return Math.round(pos.x) === -1;
-          case FacePosition.RIGHT:
-            return Math.round(pos.x) === 1;
-          case FacePosition.UP:
-            return Math.round(pos.y) === 1;
-          case FacePosition.DOWN:
-            return Math.round(pos.y) === -1;
-          default:
-            return false;
-        }
-      });
-      
-      facesToHighlight.forEach((face, faceIndex) => {
-        // Create highlight geometry matching the piece size
-        const highlightGeometry = new THREE.PlaneGeometry(0.95, 0.95);
-        const highlightMaterial = new THREE.MeshBasicMaterial({
-          color: face === selectedFace ? 0xffcc00 : 0x66ccff, // Orange for main face, blue for others
-          transparent: true,
-          opacity: face === selectedFace ? 0.5 : 0.3,
-          side: THREE.FrontSide, // Only render front side to avoid double faces
-          depthTest: true, // Enable depth testing to prevent overlap issues
-          depthWrite: false,
-        });
-        
-        const highlightMesh = new THREE.Mesh(highlightGeometry, highlightMaterial);
-        highlightMesh.name = `layer-highlight-${face}-${index}-${faceIndex}`;
-        highlightMesh.renderOrder = 1001; // Render above regular highlights
-        
-        // Position the highlight on the specific face of the piece with proper offset
-        const offset = 0.01; // Increased offset to avoid z-fighting
-        const pos = cubeMesh.position;
-        
-        switch (face) {
-          case FacePosition.FRONT:
-            highlightMesh.position.set(pos.x, pos.y, pos.z + 0.5 + offset);
-            highlightMesh.rotation.set(0, 0, 0);
-            break;
-          case FacePosition.BACK:
-            highlightMesh.position.set(pos.x, pos.y, pos.z - 0.5 - offset);
-            highlightMesh.rotation.set(0, Math.PI, 0);
-            break;
-          case FacePosition.LEFT:
-            highlightMesh.position.set(pos.x - 0.5 - offset, pos.y, pos.z);
-            highlightMesh.rotation.set(0, -Math.PI / 2, 0);
-            break;
-          case FacePosition.RIGHT:
-            highlightMesh.position.set(pos.x + 0.5 + offset, pos.y, pos.z);
-            highlightMesh.rotation.set(0, Math.PI / 2, 0);
-            break;
-          case FacePosition.UP:
-            highlightMesh.position.set(pos.x, pos.y + 0.5 + offset, pos.z);
-            highlightMesh.rotation.set(-Math.PI / 2, 0, 0);
-            break;
-          case FacePosition.DOWN:
-            highlightMesh.position.set(pos.x, pos.y - 0.5 - offset, pos.z);
-            highlightMesh.rotation.set(Math.PI / 2, 0, 0);
-            break;
-        }
-        
-        // Add to cube group so it rotates with the cube
-        cubeGroup.add(highlightMesh);
-        layerHighlightMeshesRef.current.push(highlightMesh);
-      });
+    window.console.log('🎯 ✅ updateGestureLayerHighlight complete:', {
+      createdMeshes: highlightMeshes.length,
+      meshNames: highlightMeshes.map(m => m.name),
+      cubeGroupChildrenAfter: cubeGroup.children.length
     });
-    
-    window.console.log('🎯 Created', layerHighlightMeshesRef.current.length, 'layer highlight meshes');
-  }, [scene, cubeGroup, interactionState.selectedFace, selectedPiecePosition, clearLayerHighlights]);
+  }, [scene, cubeGroup, clearLayerHighlights]);
 
   // Get opacity based on state
   const getOpacityForState = (state: VisualFeedback['state']): number => {

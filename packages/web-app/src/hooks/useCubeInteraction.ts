@@ -23,7 +23,7 @@ interface UseCubeInteractionOptions {
   onFaceHover?: (_face: FacePosition | null) => void;
   onFaceSelect?: (_face: FacePosition, _intersectionPoint?: readonly [number, number, number], _mesh?: any, _hitNormal?: readonly [number, number, number]) => void;
   onRotationStart?: (_command: RotationCommand) => void;
-  onRotationUpdate?: (_command: RotationCommand) => void;
+  onRotationUpdate?: (_command: RotationCommand, _dragInfo?: { currentMesh?: any; startPiece?: readonly [number, number, number] | undefined; currentPiece?: readonly [number, number, number] | null }) => void;
   onRotationComplete?: (_command: RotationCommand, _move: Move) => void;
   onError?: (_error: CubeError, _message?: string) => void;
 }
@@ -420,7 +420,22 @@ export function useCubeInteraction(
       lastInteraction: performance.now(),
     }));
 
-    callbacks.onRotationUpdate?.(rotationCommand);
+    // Pass dragInfo for gesture-based layer detection
+    const dragInfo = {
+      currentMesh: currentRaycastResult.success ? currentRaycastResult.data?.mesh : undefined,
+      startPiece: rotationStartRef.current?.piecePosition as readonly [number, number, number] | undefined,
+      currentPiece: currentPiecePositionRef.current
+    };
+    
+    window.console.log('🔵 useCubeInteraction onRotationUpdate:', {
+      rotationCommand,
+      dragInfo,
+      hasCallback: !!callbacks.onRotationUpdate,
+      raycastSuccess: currentRaycastResult.success,
+      gestureDistance: distance
+    });
+    
+    callbacks.onRotationUpdate?.(rotationCommand, dragInfo);
   }, [camera, scene, isAnimating, calculateRotationAngle, snapToGrid, callbacks, interactionState.selectedFace]);
 
   // Reset interaction state
