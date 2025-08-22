@@ -198,8 +198,10 @@ export class MoveHistoryManager {
 
   // Get history statistics
   getStatistics(): HistoryStatistics {
-    const moveHistory = this.getMoveHistory();
     const undoTimestamps = this.undoStack.map(h => h.timestamp);
+    
+    // Total moves executed = undo stack size - 1 (excluding initial state) + redo stack size
+    const totalMoves = Math.max(0, this.undoStack.length - 1) + this.redoStack.length;
     
     // Estimate memory usage (simplified calculation)
     const estimatedMemoryPerState = 1000; // bytes (rough estimate)
@@ -209,7 +211,7 @@ export class MoveHistoryManager {
     const newestTimestamp = undoTimestamps.length > 0 ? Math.max(...undoTimestamps) : undefined;
 
     return {
-      totalMoves: moveHistory.length,
+      totalMoves,
       undoStackSize: this.undoStack.length,
       redoStackSize: this.redoStack.length,
       memoryUsage,
@@ -250,7 +252,10 @@ export class MoveHistoryManager {
 
   // Jump to specific position in history
   jumpToPosition(position: number): CubeOperationResult<CubeState> {
-    if (position < 0 || position >= this.undoStack.length) {
+    // Position 0 = initial state, max position = undoStack.length - 2
+    // (since we access position + 1 for position > 0)
+    const maxPosition = Math.max(0, this.undoStack.length - 2);
+    if (position < 0 || position > maxPosition) {
       return {
         success: false,
         error: CubeError.INVALID_MOVE,
@@ -258,7 +263,11 @@ export class MoveHistoryManager {
     }
 
     try {
-      const targetState = this.undoStack[position];
+      // Position 0 = initial state, Position 1 = after first move, etc.
+      // undoStack[0] = initial, undoStack[1] = before first move, undoStack[2] = after first move
+      // So position N maps to undoStack[N+1] for N > 0
+      const targetIndex = position === 0 ? 0 : position + 1;
+      const targetState = this.undoStack[targetIndex];
       
       if (!targetState) {
         return {
@@ -271,7 +280,7 @@ export class MoveHistoryManager {
       this.redoStack = [];
       
       // Trim undo stack to target position
-      this.undoStack = this.undoStack.slice(0, position + 1);
+      this.undoStack = this.undoStack.slice(0, targetIndex + 1);
       
       // Set current state
       this.currentState = targetState.state;
@@ -309,17 +318,32 @@ export class MoveHistoryManager {
 
   // Get move sequence from history
   getMoveSequence(startPosition: number = 0, endPosition?: number): readonly Move[] {
-    const end = endPosition ?? this.undoStack.length;
-    const moves: Move[] = [];
-
-    for (let i = startPosition; i < end && i < this.undoStack.length; i++) {
+    // First, extract all moves from the undo stack
+    const allMoves: Move[] = [];
+    for (let i = 1; i < this.undoStack.length; i++) {
       const historyState = this.undoStack[i];
       if (historyState?.move) {
-        moves.push(historyState.move);
+        allMoves.push(historyState.move);
       }
     }
 
-    return moves;
+    // Handle 1-indexed positions: position 1 = first move, etc.
+    // Convert to 0-indexed for array slicing
+    const startIndex = Math.max(0, startPosition - 1);
+    
+    // When no endPosition specified with startPosition > 0, 
+    // return moves from that position to the end
+    if (endPosition === undefined) {
+      if (startPosition === 0) {
+        return allMoves; // Return all moves
+      } else {
+        // For single parameter > 0, interpret as 0-indexed into moves array
+        return allMoves.slice(startPosition);
+      }
+    }
+    
+    const endIndex = endPosition - 1;
+    return allMoves.slice(startIndex, endIndex);
   }
 
 

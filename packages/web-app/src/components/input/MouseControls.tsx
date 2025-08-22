@@ -179,8 +179,12 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     },
     onRotationUpdate: (command) => {
       // When user starts dragging and we have a rotation direction, highlight the entire layer
-      window.console.log('🎯 onRotationUpdate called:', command.face, command.direction);
-      updateLayerHighlight(command);
+      window.console.log('🎯 onRotationUpdate called:', command.face, command.direction, 'recalculate:', command.recalculateLayer);
+      
+      // Always update layer highlighting, especially when recalculateLayer is true
+      if (command.recalculateLayer || !layerHighlightMeshesRef.current.length) {
+        updateLayerHighlight(command);
+      }
     },
     onRotationComplete: (command, move) => {
       // Clear visual feedback for the rotated face
@@ -309,11 +313,47 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       selectedFace: interactionState.selectedFace,
       selectedPiecePosition,
       commandFace: command.face,
-      commandDirection: command.direction
+      commandDirection: command.direction,
+      recalculateLayer: command.recalculateLayer
     });
     
-    if (!scene || !cubeGroup || !interactionState.selectedFace || !selectedPiecePosition) {
+    if (!scene || !cubeGroup || !interactionState.selectedFace) {
       window.console.warn('🎯 Layer highlighting: Missing dependencies');
+      return;
+    }
+
+    // Use selected piece position for layer calculation
+    // For recalculated layers, we'll use the current piece position from raycasting
+    let piecePositionForLayer = selectedPiecePosition;
+    
+    // If recalculating layer and we don't have selectedPiecePosition, raycast at current mouse position
+    if (command.recalculateLayer && !piecePositionForLayer) {
+      // We'll use the command.face to determine a representative piece position
+      // This is a fallback when selectedPiecePosition is not available
+      switch (command.face) {
+        case FacePosition.FRONT:
+          piecePositionForLayer = [0, 0, 1] as const;
+          break;
+        case FacePosition.BACK:
+          piecePositionForLayer = [0, 0, -1] as const;
+          break;
+        case FacePosition.LEFT:
+          piecePositionForLayer = [-1, 0, 0] as const;
+          break;
+        case FacePosition.RIGHT:
+          piecePositionForLayer = [1, 0, 0] as const;
+          break;
+        case FacePosition.UP:
+          piecePositionForLayer = [0, 1, 0] as const;
+          break;
+        case FacePosition.DOWN:
+          piecePositionForLayer = [0, -1, 0] as const;
+          break;
+      }
+    }
+    
+    if (!piecePositionForLayer) {
+      window.console.warn('🎯 Layer highlighting: No piece position available');
       return;
     }
     
@@ -321,7 +361,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     clearLayerHighlights();
     
     // Smart layer selection: prefer more natural face selection for corner/edge pieces
-    const [x, y, z] = selectedPiecePosition;
+    const [x, y, z] = piecePositionForLayer;
     const roundedX = Math.round(x);
     const roundedY = Math.round(y);
     const roundedZ = Math.round(z);
@@ -390,7 +430,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     
     // Determine which layer will be affected using the (potentially overridden) face
     const layerInfo = LayerDetection.getLayerPieces(
-      selectedPiecePosition,
+      piecePositionForLayer,
       selectedFace,
       command.direction
     );

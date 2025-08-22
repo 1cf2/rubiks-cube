@@ -67,6 +67,20 @@ export class StateSerializer {
     try {
       const startTime = performance.now();
 
+      // Check for circular references before processing
+      try {
+        JSON.stringify(state);
+      } catch (circularError) {
+        if (circularError instanceof TypeError && circularError.message.includes('circular')) {
+          return {
+            success: false,
+            error: CubeError.STATE_CORRUPTION,
+          };
+        }
+        // Re-throw other JSON errors
+        throw circularError;
+      }
+
       // Validate state if requested
       if (opts.validation) {
         const validation = StateValidator.validateState(state);
@@ -441,21 +455,51 @@ export class StateSerializer {
   }
 
   private static createCompactFormat(state: SerializedCubeState): string {
+    // Color mapping for compact representation
+    const colorMap: Record<string, string> = {
+      'white': 'W',
+      'yellow': 'Y',
+      'red': 'R',
+      'orange': 'O',
+      'blue': 'B',
+      'green': 'G'
+    };
+
     // Create a compact string representation
-    const faceColors = state.faces.map(face => face.colors.join('')).join('|');
+    const faceColors = state.faces.map(face => 
+      face.colors.map(color => colorMap[color] || color).join('')
+    ).join('|');
     const rotations = state.faces.map(face => face.rotation.toFixed(3)).join(',');
     const flags = `${state.isScrambled ? '1' : '0'}${state.isSolved ? '1' : '0'}`;
     
-    return `${faceColors}:${rotations}:${flags}:${state.timestamp}`;
+    // Encode move history (if present)
+    let moveHistoryStr = '';
+    if (state.moveHistory && state.moveHistory.length > 0) {
+      moveHistoryStr = state.moveHistory.map(move => 
+        `${move.face.charAt(0).toUpperCase()}${move.direction === 'clockwise' ? '+' : move.direction === 'counterclockwise' ? '-' : '2'}${move.timestamp}${move.duration ? `,${move.duration}` : ''}`
+      ).join(';');
+    }
+    
+    return `${faceColors}:${rotations}:${flags}:${state.timestamp}:${moveHistoryStr}`;
   }
 
   private static parseCompactFormat(compactData: string): SerializedCubeState {
+    // Color mapping for compact representation (reverse mapping)
+    const colorMap: Record<string, CubeColor> = {
+      'W': 'white' as CubeColor,
+      'Y': 'yellow' as CubeColor,
+      'R': 'red' as CubeColor,
+      'O': 'orange' as CubeColor,
+      'B': 'blue' as CubeColor,
+      'G': 'green' as CubeColor
+    };
+
     const parts = compactData.split(':');
     if (parts.length < 4) {
       throw new Error('Invalid compact format');
     }
 
-    const [faceColorsStr, rotationsStr, flagsStr, timestampStr] = parts;
+    const [faceColorsStr, rotationsStr, flagsStr, timestampStr, moveHistoryStr] = parts;
     
     if (!faceColorsStr || !rotationsStr || !flagsStr || !timestampStr) {
       throw new Error('Invalid compact format: missing required parts');
@@ -480,9 +524,18 @@ export class StateSerializer {
         throw new Error(`Invalid face index: ${index}`);
       }
       
+      // Map single characters back to full color names
+      const colors = colorStr.split('').map(char => {
+        const color = colorMap[char];
+        if (!color) {
+          throw new Error(`Invalid color character: ${char}`);
+        }
+        return color;
+      });
+      
       return {
         face: faceName,
-        colors: colorStr.split('') as CubeColor[],
+        colors,
         rotation: rotations[index] || 0,
       };
     });
@@ -491,8 +544,55 @@ export class StateSerializer {
     const isSolved = flagsStr[1] === '1';
     const timestamp = parseInt(timestampStr, 10);
 
+    // Parse move history (if present)
+    let moveHistory: SerializedMove[] | undefined;
+    if (moveHistoryStr && moveHistoryStr.trim().length > 0) {
+      moveHistory = moveHistoryStr.split(';').map(moveStr => {
+        // Format: F+1234567890,300 (face + direction + timestamp + optional duration)
+        const faceChar = moveStr.charAt(0);
+        const directionChar = moveStr.charAt(1);
+        
+        // Map face characters back to full names
+        const faceMap: Record<string, CubeFace> = {
+          'F': 'front', 'B': 'back', 'L': 'left', 'R': 'right', 'U': 'up', 'D': 'down'
+        };
+        
+        const face = faceMap[faceChar];
+        if (!face) {
+          throw new Error(`Invalid face character in move history: ${faceChar}`);
+        }
+        
+        // Map direction characters back to full names
+        let direction: RotationDirection;
+        if (directionChar === '+') {
+          direction = 'clockwise';
+        } else if (directionChar === '-') {
+          direction = 'counterclockwise';
+        } else if (directionChar === '2') {
+          direction = 'double';
+        } else {
+          throw new Error(`Invalid direction character in move history: ${directionChar}`);
+        }
+        
+        // Parse timestamp and optional duration
+        const timestampAndDuration = moveStr.slice(2);
+        const [timestampStr, durationStr] = timestampAndDuration.split(',');
+        
+        const moveTimestamp = parseInt(timestampStr || '0', 10);
+        const duration = durationStr ? parseInt(durationStr, 10) : 300; // Default duration
+        
+        return {
+          face,
+          direction,
+          timestamp: moveTimestamp,
+          duration
+        };
+      });
+    }
+
     return {
       faces,
+      ...(moveHistory && { moveHistory }),
       isScrambled,
       isSolved,
       timestamp,

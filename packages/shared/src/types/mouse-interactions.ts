@@ -52,6 +52,7 @@ export interface RotationCommand {
   readonly angle: number; // Current rotation angle in radians
   readonly targetAngle: number; // Target angle (90, 180, 270 degrees)
   readonly isComplete: boolean;
+  readonly recalculateLayer?: boolean; // Flag to recalculate layer highlighting when mouse moves to new piece
 }
 
 export interface CubeAnimation {

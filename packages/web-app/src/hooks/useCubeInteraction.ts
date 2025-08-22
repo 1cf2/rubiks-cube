@@ -66,7 +66,8 @@ export function useCubeInteraction(
   const [isAnimating, setIsAnimating] = useState(false);
 
   const lastHoveredFaceRef = useRef<FacePosition | null>(null);
-  const rotationStartRef = useRef<{ face: FacePosition; startAngle: number } | null>(null);
+  const rotationStartRef = useRef<{ face: FacePosition; startAngle: number; piecePosition?: readonly [number, number, number] } | null>(null);
+  const currentPiecePositionRef = useRef<readonly [number, number, number] | null>(null);
 
   // Convert face position and rotation direction to Move notation
   const createMove = useCallback((face: FacePosition, direction: RotationDirection): Move => {
@@ -180,11 +181,20 @@ export function useCubeInteraction(
     const intersectionPoint = raycastResult.data.point;
     const clickedMesh = raycastResult.data.mesh;
     const hitNormal = raycastResult.data.hitNormal;
+    
+    // Store the initial piece position for tracking movement
+    const initialPiecePosition = clickedMesh ? [
+      Math.round(clickedMesh.position.x),
+      Math.round(clickedMesh.position.y),
+      Math.round(clickedMesh.position.z)
+    ] as const : null;
+    
     window.console.log('🔍 Raycast result:', { 
       selectedFace, 
       intersectionPoint, 
       clickedMesh: clickedMesh?.uuid,
       meshPosition: clickedMesh ? { x: clickedMesh.position.x, y: clickedMesh.position.y, z: clickedMesh.position.z } : null,
+      initialPiecePosition,
       hitNormal,
       raycastData: raycastResult.data 
     });
@@ -204,7 +214,10 @@ export function useCubeInteraction(
     rotationStartRef.current = {
       face: selectedFace,
       startAngle: 0,
+      ...(initialPiecePosition && { piecePosition: initialPiecePosition }),
     };
+    
+    currentPiecePositionRef.current = initialPiecePosition;
     
     // Store gesture ID in the interaction state for later tracking
     (gesture as any).gestureId = gestureId;
@@ -237,12 +250,139 @@ export function useCubeInteraction(
     if (distance < 1) {
       return;
     }
+
+    // Raycast at current mouse position to detect if we're over a new piece
+    const currentRaycastResult = RaycastingUtils.raycastCubeFaces({
+      camera,
+      scene,
+      mouse: gesture.currentPosition,
+      recursive: true,
+    });
+
+    let effectiveFace = face;
+    let recalculateLayer = false;
+
+    // If we hit a different piece, determine new face based on movement direction
+    if (currentRaycastResult.success && currentRaycastResult.data) {
+      const currentMesh = currentRaycastResult.data.mesh;
+      const currentPiecePosition = currentMesh ? [
+        Math.round(currentMesh.position.x),
+        Math.round(currentMesh.position.y), 
+        Math.round(currentMesh.position.z)
+      ] as const : null;
+
+      // Check if we've moved to a different piece
+      const movedToNewPiece = currentPiecePosition && currentPiecePositionRef.current && 
+        (currentPiecePosition[0] !== currentPiecePositionRef.current[0] ||
+         currentPiecePosition[1] !== currentPiecePositionRef.current[1] ||
+         currentPiecePosition[2] !== currentPiecePositionRef.current[2]);
+
+      if (movedToNewPiece && currentPiecePosition) {
+        window.console.log('🎯 Moved to new piece:', {
+          from: currentPiecePositionRef.current,
+          to: currentPiecePosition,
+          movementVector: { x: deltaX, y: deltaY }
+        });
+
+        // Update current piece position
+        currentPiecePositionRef.current = currentPiecePosition;
+
+        // Calculate movement direction between pieces
+        const originalPosition = rotationStartRef.current?.piecePosition || currentPiecePositionRef.current;
+        if (originalPosition) {
+          const [fromX, fromY, fromZ] = originalPosition;
+          const [toX, toY, toZ] = currentPiecePosition;
+          const pieceMovement = {
+            x: toX - fromX,
+            y: toY - fromY,
+            z: toZ - fromZ
+          };
+
+          // Determine which faces are available on the target piece
+          const [x, y, z] = currentPiecePosition;
+          const availableFaces: FacePosition[] = [];
+          
+          if (x === -1) availableFaces.push(FacePosition.LEFT);
+          if (x === 1) availableFaces.push(FacePosition.RIGHT);
+          if (y === -1) availableFaces.push(FacePosition.DOWN);
+          if (y === 1) availableFaces.push(FacePosition.UP);
+          if (z === -1) availableFaces.push(FacePosition.BACK);
+          if (z === 1) availableFaces.push(FacePosition.FRONT);
+
+          // Calculate the movement direction to help prioritize face selection
+          const absPieceX = Math.abs(pieceMovement.x);
+          const absPieceY = Math.abs(pieceMovement.y);
+          const absPieceZ = Math.abs(pieceMovement.z);
+
+          // Prioritize faces based on movement direction and availability
+          let bestFace: FacePosition | null = null;
+          
+          // If we moved primarily along one axis, prioritize the corresponding faces
+          if (absPieceX > absPieceY && absPieceX > absPieceZ) {
+            // Horizontal movement - prefer left/right faces
+            if (pieceMovement.x > 0 && availableFaces.includes(FacePosition.RIGHT)) {
+              bestFace = FacePosition.RIGHT;
+            } else if (pieceMovement.x < 0 && availableFaces.includes(FacePosition.LEFT)) {
+              bestFace = FacePosition.LEFT;
+            }
+          } else if (absPieceY > absPieceX && absPieceY > absPieceZ) {
+            // Vertical movement - prefer up/down faces
+            if (pieceMovement.y > 0 && availableFaces.includes(FacePosition.UP)) {
+              bestFace = FacePosition.UP;
+            } else if (pieceMovement.y < 0 && availableFaces.includes(FacePosition.DOWN)) {
+              bestFace = FacePosition.DOWN;
+            }
+          } else if (absPieceZ > absPieceX && absPieceZ > absPieceY) {
+            // Depth movement - prefer front/back faces
+            if (pieceMovement.z > 0 && availableFaces.includes(FacePosition.FRONT)) {
+              bestFace = FacePosition.FRONT;
+            } else if (pieceMovement.z < 0 && availableFaces.includes(FacePosition.BACK)) {
+              bestFace = FacePosition.BACK;
+            }
+          }
+
+          // If movement direction didn't give us a good match, use priority order
+          if (!bestFace && availableFaces.length > 0) {
+            // Priority order: prefer side faces over top/bottom for better UX
+            const priorityOrder = [
+              FacePosition.FRONT, 
+              FacePosition.RIGHT, 
+              FacePosition.LEFT, 
+              FacePosition.BACK, 
+              FacePosition.UP, 
+              FacePosition.DOWN
+            ];
+            
+            for (const priorityFace of priorityOrder) {
+              if (availableFaces.includes(priorityFace)) {
+                bestFace = priorityFace;
+                break;
+              }
+            }
+          }
+
+          if (bestFace && bestFace !== face) {
+            effectiveFace = bestFace;
+            recalculateLayer = true;
+            
+            window.console.log('🎯 Recalculating layer:', {
+              originalFace: face,
+              newFace: effectiveFace,
+              pieceMovement,
+              availableFaces,
+              targetPiecePosition: currentPiecePosition,
+              movementMagnitudes: { x: absPieceX, y: absPieceY, z: absPieceZ }
+            });
+          }
+        }
+      }
+    }
     
-    // Calculate rotation direction
+    // Calculate rotation direction using the effective face
     const directionResult = RaycastingUtils.calculateRotationDirection(
       gesture.startPosition,
       gesture.currentPosition,
-      face,
+      effectiveFace,
       camera
     );
 
@@ -253,22 +393,25 @@ export function useCubeInteraction(
     }
 
     const direction = directionResult.data;
-    const angle = calculateRotationAngle(gesture, face);
+    const angle = calculateRotationAngle(gesture, effectiveFace);
     const targetAngle = snapToGrid(angle);
 
     const rotationCommand: RotationCommand = {
-      face,
+      face: effectiveFace,
       direction: direction === 'clockwise' ? RotationDirection.CLOCKWISE : RotationDirection.COUNTERCLOCKWISE,
       angle,
       targetAngle,
       isComplete: false,
+      recalculateLayer, // Add flag to indicate layer should be recalculated
     };
 
     MouseGestureDebugger.trackGestureStep(gestureId, 'ROTATION_COMMAND', {
-      face,
+      face: effectiveFace,
+      originalFace: face,
       direction: direction === 'clockwise' ? 'CLOCKWISE' : 'COUNTERCLOCKWISE',
       angle,
-      targetAngle
+      targetAngle,
+      recalculateLayer
     });
     setCurrentRotation(rotationCommand);
     setInteractionState(prev => ({
@@ -278,7 +421,7 @@ export function useCubeInteraction(
     }));
 
     callbacks.onRotationUpdate?.(rotationCommand);
-  }, [camera, scene, isAnimating, calculateRotationAngle, snapToGrid, callbacks]);
+  }, [camera, scene, isAnimating, calculateRotationAngle, snapToGrid, callbacks, interactionState.selectedFace]);
 
   // Reset interaction state
   const resetInteraction = useCallback(() => {

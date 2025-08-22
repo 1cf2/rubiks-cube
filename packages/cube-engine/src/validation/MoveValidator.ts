@@ -81,15 +81,6 @@ export class MoveValidator {
         continue;
       }
       
-      // Check if moves are too close in time
-      const timeDiff = nextMove.timestamp - currentMove.timestamp;
-      if (timeDiff < currentMove.duration) {
-        return {
-          success: false,
-          error: CubeError.INVALID_MOVE,
-        };
-      }
-
       // Check for conflicting faces
       if (MoveValidator.wouldMovesConflict(currentMove, nextMove)) {
         return {
@@ -191,10 +182,27 @@ export class MoveValidator {
     return adjacencyMap[face] || [];
   }
 
+  private static areOppositeFaces(face1: CubeFace, face2: CubeFace): boolean {
+    const oppositePairs: Array<[CubeFace, CubeFace]> = [
+      ['front', 'back'],
+      ['left', 'right'],
+      ['up', 'down']
+    ];
+    
+    return oppositePairs.some(([a, b]) => 
+      (face1 === a && face2 === b) || (face1 === b && face2 === a)
+    );
+  }
+
   private static wouldMovesConflict(move1: Move, move2: Move): boolean {
     // Same face moves conflict if they overlap in time
     if (move1.face === move2.face) {
       return move2.timestamp < (move1.timestamp + move1.duration);
+    }
+
+    // Opposite faces never conflict (can rotate simultaneously)
+    if (MoveValidator.areOppositeFaces(move1.face, move2.face)) {
+      return false;
     }
 
     // Adjacent face moves may conflict depending on timing
