@@ -15,6 +15,7 @@ import {
 } from '@rubiks-cube/shared/types';
 import { RaycastingUtils } from '../utils/raycasting';
 import { DebugLogger, MouseGestureDebugger } from '../utils/debugLogger';
+import { GestureLayerDetection } from '../utils/gestureLayerDetection';
 
 interface UseCubeInteractionOptions {
   camera: THREE.Camera | null;
@@ -259,10 +260,11 @@ export function useCubeInteraction(
       recursive: true,
     });
 
+    // Always use gesture-based layer detection for rotation
     let effectiveFace = face;
     let recalculateLayer = false;
 
-    // If we hit a different piece, determine new face based on movement direction
+    // Update current piece position if we hit something
     if (currentRaycastResult.success && currentRaycastResult.data) {
       const currentMesh = currentRaycastResult.data.mesh;
       const currentPiecePosition = currentMesh ? [
@@ -271,110 +273,54 @@ export function useCubeInteraction(
         Math.round(currentMesh.position.z)
       ] as const : null;
 
-      // Check if we've moved to a different piece
-      const movedToNewPiece = currentPiecePosition && currentPiecePositionRef.current && 
-        (currentPiecePosition[0] !== currentPiecePositionRef.current[0] ||
-         currentPiecePosition[1] !== currentPiecePositionRef.current[1] ||
-         currentPiecePosition[2] !== currentPiecePositionRef.current[2]);
-
-      if (movedToNewPiece && currentPiecePosition) {
-        window.console.log('🎯 Moved to new piece:', {
-          from: currentPiecePositionRef.current,
-          to: currentPiecePosition,
-          movementVector: { x: deltaX, y: deltaY }
-        });
-
-        // Update current piece position
+      if (currentPiecePosition) {
         currentPiecePositionRef.current = currentPiecePosition;
+      }
+    }
 
-        // Calculate movement direction between pieces
-        const originalPosition = rotationStartRef.current?.piecePosition || currentPiecePositionRef.current;
-        if (originalPosition) {
-          const [fromX, fromY, fromZ] = originalPosition;
-          const [toX, toY, toZ] = currentPiecePosition;
-          const pieceMovement = {
-            x: toX - fromX,
-            y: toY - fromY,
-            z: toZ - fromZ
-          };
+    // Use gesture-based layer detection to determine the rotating layer
+    const originalPosition = rotationStartRef.current?.piecePosition;
+    const currentPosition = currentPiecePositionRef.current;
+    
+    if (originalPosition && currentPosition) {
+      window.console.log('🎯 Using gesture-based rotation layer detection:', {
+        startPiece: originalPosition,
+        currentPiece: currentPosition,
+        originalFace: face
+      });
 
-          // Determine which faces are available on the target piece
-          const [x, y, z] = currentPiecePosition;
-          const availableFaces: FacePosition[] = [];
-          
-          if (x === -1) availableFaces.push(FacePosition.LEFT);
-          if (x === 1) availableFaces.push(FacePosition.RIGHT);
-          if (y === -1) availableFaces.push(FacePosition.DOWN);
-          if (y === 1) availableFaces.push(FacePosition.UP);
-          if (z === -1) availableFaces.push(FacePosition.BACK);
-          if (z === 1) availableFaces.push(FacePosition.FRONT);
-
-          // Calculate the movement direction to help prioritize face selection
-          const absPieceX = Math.abs(pieceMovement.x);
-          const absPieceY = Math.abs(pieceMovement.y);
-          const absPieceZ = Math.abs(pieceMovement.z);
-
-          // Prioritize faces based on movement direction and availability
-          let bestFace: FacePosition | null = null;
-          
-          // If we moved primarily along one axis, prioritize the corresponding faces
-          if (absPieceX > absPieceY && absPieceX > absPieceZ) {
-            // Horizontal movement - prefer left/right faces
-            if (pieceMovement.x > 0 && availableFaces.includes(FacePosition.RIGHT)) {
-              bestFace = FacePosition.RIGHT;
-            } else if (pieceMovement.x < 0 && availableFaces.includes(FacePosition.LEFT)) {
-              bestFace = FacePosition.LEFT;
-            }
-          } else if (absPieceY > absPieceX && absPieceY > absPieceZ) {
-            // Vertical movement - prefer up/down faces
-            if (pieceMovement.y > 0 && availableFaces.includes(FacePosition.UP)) {
-              bestFace = FacePosition.UP;
-            } else if (pieceMovement.y < 0 && availableFaces.includes(FacePosition.DOWN)) {
-              bestFace = FacePosition.DOWN;
-            }
-          } else if (absPieceZ > absPieceX && absPieceZ > absPieceY) {
-            // Depth movement - prefer front/back faces
-            if (pieceMovement.z > 0 && availableFaces.includes(FacePosition.FRONT)) {
-              bestFace = FacePosition.FRONT;
-            } else if (pieceMovement.z < 0 && availableFaces.includes(FacePosition.BACK)) {
-              bestFace = FacePosition.BACK;
-            }
-          }
-
-          // If movement direction didn't give us a good match, use priority order
-          if (!bestFace && availableFaces.length > 0) {
-            // Priority order: prefer side faces over top/bottom for better UX
-            const priorityOrder = [
-              FacePosition.FRONT, 
-              FacePosition.RIGHT, 
-              FacePosition.LEFT, 
-              FacePosition.BACK, 
-              FacePosition.UP, 
-              FacePosition.DOWN
-            ];
-            
-            for (const priorityFace of priorityOrder) {
-              if (availableFaces.includes(priorityFace)) {
-                bestFace = priorityFace;
-                break;
-              }
-            }
-          }
-
-          if (bestFace && bestFace !== face) {
-            effectiveFace = bestFace;
-            recalculateLayer = true;
-            
-            window.console.log('🎯 Recalculating layer:', {
-              originalFace: face,
-              newFace: effectiveFace,
-              pieceMovement,
-              availableFaces,
-              targetPiecePosition: currentPiecePosition,
-              movementMagnitudes: { x: absPieceX, y: absPieceY, z: absPieceZ }
-            });
-          }
+      const gestureLayerInfo = GestureLayerDetection.detectLayerFromGesture(originalPosition, currentPosition);
+      
+      if (gestureLayerInfo) {
+        // Convert gesture layer info to face position - this becomes our rotation layer
+        let detectedFace: FacePosition;
+        switch (gestureLayerInfo.axis) {
+          case 'x':
+            detectedFace = gestureLayerInfo.layerIndex === -1 ? FacePosition.LEFT : 
+                           gestureLayerInfo.layerIndex === 0 ? FacePosition.LEFT : FacePosition.RIGHT;
+            break;
+          case 'y':
+            detectedFace = gestureLayerInfo.layerIndex === -1 ? FacePosition.DOWN : 
+                           gestureLayerInfo.layerIndex === 0 ? FacePosition.UP : FacePosition.UP;
+            break;
+          case 'z':
+            detectedFace = gestureLayerInfo.layerIndex === -1 ? FacePosition.BACK : 
+                           gestureLayerInfo.layerIndex === 0 ? FacePosition.FRONT : FacePosition.FRONT;
+            break;
+          default:
+            detectedFace = face; // fallback to original
         }
+
+        effectiveFace = detectedFace;
+        recalculateLayer = true;
+        
+        window.console.log('🎯 Rotation layer set to highlighted layer:', {
+          originalFace: face,
+          rotationFace: effectiveFace,
+          gestureLayer: gestureLayerInfo
+        });
+      } else {
+        window.console.log('🎯 No gesture layer detected, using original face:', face);
       }
     }
     
@@ -484,7 +430,45 @@ export function useCubeInteraction(
     // If we have a face selection but no savedCurrentRotation and sufficient drag, create one
     if (rotationStartRef.current && !savedCurrentRotation && distance >= minimumDragDistance && gesture.duration > 50) {
       MouseGestureDebugger.trackGestureStep(gestureId, 'CREATING_ROTATION');
-      const { face } = rotationStartRef.current;
+      
+      // Always use gesture-based layer detection for rotation
+      const originalPosition = rotationStartRef.current?.piecePosition;
+      const currentPosition = currentPiecePositionRef.current;
+      let face = rotationStartRef.current.face; // fallback
+      
+      if (originalPosition && currentPosition) {
+        window.console.log('🎯 handleDragEnd: Using highlighted layer for rotation:', {
+          originalPosition,
+          currentPosition
+        });
+        
+        const gestureLayerInfo = GestureLayerDetection.detectLayerFromGesture(originalPosition, currentPosition);
+        
+        if (gestureLayerInfo) {
+          // Convert gesture layer info to face position - this is our rotation layer
+          switch (gestureLayerInfo.axis) {
+            case 'x':
+              face = gestureLayerInfo.layerIndex === -1 ? FacePosition.LEFT : 
+                     gestureLayerInfo.layerIndex === 0 ? FacePosition.LEFT : FacePosition.RIGHT;
+              break;
+            case 'y':
+              face = gestureLayerInfo.layerIndex === -1 ? FacePosition.DOWN : 
+                     gestureLayerInfo.layerIndex === 0 ? FacePosition.UP : FacePosition.UP;
+              break;
+            case 'z':
+              face = gestureLayerInfo.layerIndex === -1 ? FacePosition.BACK : 
+                     gestureLayerInfo.layerIndex === 0 ? FacePosition.FRONT : FacePosition.FRONT;
+              break;
+          }
+
+          window.console.log('🎯 handleDragEnd: Rotation layer set to highlighted layer:', {
+            gestureLayer: gestureLayerInfo,
+            rotationFace: face
+          });
+        } else {
+          window.console.log('🎯 handleDragEnd: No gesture detected, using fallback face:', face);
+        }
+      }
       
       // Use RaycastingUtils to determine proper direction
       const directionResult = RaycastingUtils.calculateRotationDirection(
