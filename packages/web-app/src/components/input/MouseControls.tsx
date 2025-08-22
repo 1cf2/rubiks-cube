@@ -170,6 +170,11 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       onFaceSelect?.(face);
     },
     onRotationStart: (command) => {
+      // Clear all highlighted glow before rotation animation starts
+      window.console.log('🎯 Clearing all highlighted glow before rotation starts');
+      clearLayerHighlights();
+      setVisualFeedback(new Map());
+      
       // Skip invalid move prevention for completed rotations (drag end finalization)
       // This prevents race conditions where currentRotation hasn't been cleared yet
       if (command.isComplete) {
@@ -350,7 +355,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     });
     
     if (!scene || !cubeGroup) {
-      window.console.warn('🎯 ⚠️ Gesture layer highlighting: Missing dependencies');
+      window.console.log('🎯 ⚠️ Gesture layer highlighting: Missing dependencies');
       return;
     }
     

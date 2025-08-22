@@ -127,7 +127,7 @@ export function serializeCameraState(state: CameraState): string {
     
     return JSON.stringify(serializable);
   } catch (error) {
-    console.warn('Failed to serialize camera state:', error);
+    window.console.log('Failed to serialize camera state:', error);
     return '';
   }
 }
@@ -154,7 +154,7 @@ export function deserializeCameraState(serialized: string): CameraState | null {
       autoRotationEnabled: parsed.autoRotationEnabled || false
     };
   } catch (error) {
-    console.warn('Failed to deserialize camera state:', error);
+    window.console.log('Failed to deserialize camera state:', error);
     return null;
   }
 }

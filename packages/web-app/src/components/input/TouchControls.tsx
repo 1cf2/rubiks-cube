@@ -87,7 +87,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
             
             if (!targetValidation.success || !targetValidation.data) {
               if (process.env['NODE_ENV'] === 'development') {
-                console.warn('Touch target may be too small for accessibility');
+                window.console.log('Touch target may be too small for accessibility');
               }
             }
           }
@@ -122,7 +122,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   const handleTouchError = useCallback(
     (error: TouchError, message: string) => {
       if (process.env['NODE_ENV'] === 'development') {
-        console.warn(`Touch interaction error: ${error} - ${message}`);
+        window.console.log(`Touch interaction error: ${error} - ${message}`);
       }
       onError?.(error, message);
     },

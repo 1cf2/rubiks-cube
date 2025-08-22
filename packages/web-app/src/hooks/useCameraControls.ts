@@ -276,7 +276,7 @@ export function useCameraControls(
         localStorage.setItem('rubiks-cube-camera-state', serialized);
       }
     } catch (error) {
-      console.warn('Failed to save camera state:', error);
+      window.console.log('Failed to save camera state:', error);
     }
   }, []);
 
@@ -307,7 +307,7 @@ export function useCameraControls(
         window.console.log('Camera state restored from local storage');
       }
     } catch (error) {
-      console.warn('Failed to restore camera state:', error);
+      window.console.log('Failed to restore camera state:', error);
     }
   }, []);
 

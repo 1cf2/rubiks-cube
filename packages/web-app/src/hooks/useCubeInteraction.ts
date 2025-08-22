@@ -314,31 +314,45 @@ export function useCubeInteraction(
         effectiveFace = detectedFace;
         recalculateLayer = true;
         
-        window.console.log('🎯 Rotation layer set to highlighted layer:', {
+        // Store gesture direction for use in rotation command
+        (rotationStartRef.current as any).gestureDirection = gestureLayerInfo.direction;
+        
+        window.console.log('🎯 Rotation layer and direction set from gesture:', {
           originalFace: face,
           rotationFace: effectiveFace,
-          gestureLayer: gestureLayerInfo
+          gestureLayer: gestureLayerInfo,
+          gestureDirection: gestureLayerInfo.direction
         });
       } else {
         window.console.log('🎯 No gesture layer detected, using original face:', face);
       }
     }
     
-    // Calculate rotation direction using the effective face
-    const directionResult = RaycastingUtils.calculateRotationDirection(
-      gesture.startPosition,
-      gesture.currentPosition,
-      effectiveFace,
-      camera
-    );
+    // Use gesture-determined direction if available, otherwise calculate from raycasting
+    let direction: 'clockwise' | 'counterclockwise' = 'clockwise';
+    
+    if ((rotationStartRef.current as any).gestureDirection) {
+      direction = (rotationStartRef.current as any).gestureDirection;
+      window.console.log('🎯 Using gesture-determined direction:', direction);
+    } else {
+      // Fallback to raycasting calculation
+      const directionResult = RaycastingUtils.calculateRotationDirection(
+        gesture.startPosition,
+        gesture.currentPosition,
+        effectiveFace,
+        camera
+      );
 
-    if (!directionResult.success) {
-      DebugLogger.error('useCubeInteraction', 'Failed to calculate rotation direction', directionResult);
-      callbacks.onError?.(directionResult.error, directionResult.message);
-      return;
+      if (!directionResult.success) {
+        DebugLogger.error('useCubeInteraction', 'Failed to calculate rotation direction', directionResult);
+        callbacks.onError?.(directionResult.error, directionResult.message);
+        return;
+      }
+
+      direction = directionResult.data;
+      window.console.log('🎯 Using raycasting-determined direction:', direction);
     }
 
-    const direction = directionResult.data;
     const angle = calculateRotationAngle(gesture, effectiveFace);
     const targetAngle = snapToGrid(angle);
 
@@ -461,33 +475,47 @@ export function useCubeInteraction(
               break;
           }
 
-          window.console.log('🎯 handleDragEnd: Rotation layer set to highlighted layer:', {
+          // Store gesture direction for use in rotation
+          (rotationStartRef.current as any).gestureDirection = gestureLayerInfo.direction;
+
+          window.console.log('🎯 handleDragEnd: Rotation layer and direction set from gesture:', {
             gestureLayer: gestureLayerInfo,
-            rotationFace: face
+            rotationFace: face,
+            gestureDirection: gestureLayerInfo.direction
           });
         } else {
           window.console.log('🎯 handleDragEnd: No gesture detected, using fallback face:', face);
         }
       }
       
-      // Use RaycastingUtils to determine proper direction
-      const directionResult = RaycastingUtils.calculateRotationDirection(
-        gesture.startPosition,
-        gesture.currentPosition,
-        face,
-        camera || new THREE.PerspectiveCamera()
-      );
-      
+      // Use gesture-determined direction if available, otherwise calculate from raycasting
       let direction = RotationDirection.CLOCKWISE;
-      if (directionResult.success && directionResult.data) {
-        direction = directionResult.data === 'clockwise' 
-          ? RotationDirection.CLOCKWISE 
-          : RotationDirection.COUNTERCLOCKWISE;
+      
+      if ((rotationStartRef.current as any).gestureDirection) {
+        const gestureDirection = (rotationStartRef.current as any).gestureDirection;
+        direction = gestureDirection === 'clockwise' ? RotationDirection.CLOCKWISE : RotationDirection.COUNTERCLOCKWISE;
+        window.console.log('🎯 handleDragEnd: Using gesture-determined direction:', gestureDirection);
       } else {
-        // Fallback to simple direction calculation
-        direction = Math.abs(deltaX) > Math.abs(deltaY) 
-          ? (deltaX > 0 ? RotationDirection.CLOCKWISE : RotationDirection.COUNTERCLOCKWISE)
-          : (deltaY > 0 ? RotationDirection.COUNTERCLOCKWISE : RotationDirection.CLOCKWISE);
+        // Fallback to raycasting calculation
+        const directionResult = RaycastingUtils.calculateRotationDirection(
+          gesture.startPosition,
+          gesture.currentPosition,
+          face,
+          camera || new THREE.PerspectiveCamera()
+        );
+        
+        if (directionResult.success && directionResult.data) {
+          direction = directionResult.data === 'clockwise' 
+            ? RotationDirection.CLOCKWISE 
+            : RotationDirection.COUNTERCLOCKWISE;
+          window.console.log('🎯 handleDragEnd: Using raycasting-determined direction:', directionResult.data);
+        } else {
+          // Fallback to simple direction calculation
+          direction = Math.abs(deltaX) > Math.abs(deltaY) 
+            ? (deltaX > 0 ? RotationDirection.CLOCKWISE : RotationDirection.COUNTERCLOCKWISE)
+            : (deltaY > 0 ? RotationDirection.COUNTERCLOCKWISE : RotationDirection.CLOCKWISE);
+          window.console.log('🎯 handleDragEnd: Using fallback direction calculation:', direction);
+        }
       }
         
       const finalRotation: RotationCommand = {

@@ -197,19 +197,17 @@ export class FaceRotationAnimator {
    * Calculate target angle based on direction
    */
   private calculateTargetAngle(direction: RotationDirection, customAngle?: number): number {
-    if (customAngle !== undefined) {
-      return customAngle;
-    }
-
+    const baseAngle = customAngle || Math.PI / 2; // Default to 90 degrees if no custom angle
+    
     switch (direction) {
       case RotationDirection.CLOCKWISE:
-        return Math.PI / 2; // 90 degrees
+        return Math.abs(baseAngle); // Always positive for clockwise
       case RotationDirection.COUNTERCLOCKWISE:
-        return -Math.PI / 2; // -90 degrees
+        return -Math.abs(baseAngle); // Always negative for counterclockwise
       case RotationDirection.DOUBLE:
-        return Math.PI; // 180 degrees
+        return Math.PI; // 180 degrees (direction doesn't matter for double)
       default:
-        return Math.PI / 2;
+        return Math.abs(baseAngle); // Default to clockwise
     }
   }
 

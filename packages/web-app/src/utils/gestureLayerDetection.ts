@@ -4,6 +4,7 @@ export interface GestureLayerInfo {
   axis: 'x' | 'y' | 'z';
   layerIndex: number; // -1, 0, or 1 for the three layers along each axis
   pieces: Array<readonly [number, number, number]>; // All 9 pieces in this layer
+  direction: 'clockwise' | 'counterclockwise'; // Rotation direction based on gesture
 }
 
 export class GestureLayerDetection {
@@ -17,10 +18,6 @@ export class GestureLayerDetection {
     startPiece: readonly [number, number, number],
     endPiece: readonly [number, number, number]
   ): GestureLayerInfo | null {
-    window.console.log('🔍 GestureLayerDetection.detectLayerFromGesture called:', {
-      startPiece,
-      endPiece
-    });
     
     // Normalize piece positions to cube grid coordinates (-1, 0, 1)
     const start = [
@@ -35,7 +32,6 @@ export class GestureLayerDetection {
       Math.round(endPiece[2])
     ] as const;
 
-    window.console.log('🔍 Normalized positions:', { start, end });
 
     // Calculate the gesture vector between pieces
     const gestureVector = [
@@ -44,11 +40,12 @@ export class GestureLayerDetection {
       end[2] - start[2]
     ] as const;
 
-    window.console.log('🔍 Gesture vector:', gestureVector);
 
-    // Analyze spatial relationship to determine rotational layer
+    // Analyze spatial relationship to determine rotational layer and direction
     const result = this.analyzeGestureVector(start, end, gestureVector);
-    window.console.log('🔍 Layer detection result:', result);
+    if (result) {
+      window.console.log(`${start} → ${end} = ${result.direction}`);
+    }
     return result;
   }
 
@@ -60,7 +57,6 @@ export class GestureLayerDetection {
     end: readonly [number, number, number],
     gestureVector: readonly [number, number, number]
   ): GestureLayerInfo | null {
-    window.console.log('🔍 analyzeGestureVector called:', { start, end, gestureVector });
     
     // Find the dominant axis of movement
     const absVector = [
@@ -72,28 +68,21 @@ export class GestureLayerDetection {
     const maxAxis = absVector.indexOf(Math.max(...absVector));
     const maxMovement = Math.max(...absVector);
     
-    window.console.log('🔍 Movement analysis:', { absVector, maxAxis, maxMovement });
 
     // If no significant movement, check for shared layers
     if (maxMovement === 0) {
-      window.console.log('🔍 No movement detected, checking shared layers');
       return this.findSharedLayer(start, end);
     }
 
     // Determine rotation axis based on gesture direction
-    window.console.log('🔍 Determining layer from movement axis:', maxAxis);
     switch (maxAxis) {
       case 0: // X-axis movement
-        window.console.log('🔍 X-axis movement detected');
         return this.getLayerFromXMovement(start, end);
       case 1: // Y-axis movement  
-        window.console.log('🔍 Y-axis movement detected');
         return this.getLayerFromYMovement(start, end);
       case 2: // Z-axis movement
-        window.console.log('🔍 Z-axis movement detected');
         return this.getLayerFromZMovement(start, end);
       default:
-        window.console.log('🔍 No valid movement axis found');
         return null;
     }
   }
@@ -108,28 +97,34 @@ export class GestureLayerDetection {
     // Check if pieces share the same layer on any axis
     if (start[0] === end[0]) {
       // Same X layer - can rotate around X axis
+      const direction = this.calculateRotationDirection(start, end, 'x');
       return {
         axis: 'x',
         layerIndex: start[0],
-        pieces: this.getLayerPieces('x', start[0])
+        pieces: this.getLayerPieces('x', start[0]),
+        direction
       };
     }
     
     if (start[1] === end[1]) {
       // Same Y layer - can rotate around Y axis  
+      const direction = this.calculateRotationDirection(start, end, 'y');
       return {
         axis: 'y',
         layerIndex: start[1],
-        pieces: this.getLayerPieces('y', start[1])
+        pieces: this.getLayerPieces('y', start[1]),
+        direction
       };
     }
     
     if (start[2] === end[2]) {
       // Same Z layer - can rotate around Z axis
+      const direction = this.calculateRotationDirection(start, end, 'z');
       return {
         axis: 'z', 
         layerIndex: start[2],
-        pieces: this.getLayerPieces('z', start[2])
+        pieces: this.getLayerPieces('z', start[2]),
+        direction
       };
     }
 
@@ -147,28 +142,34 @@ export class GestureLayerDetection {
     // Choose the axis where both pieces share the same coordinate
     if (start[1] === end[1]) {
       // Same Y coordinate - rotate around Y axis
+      const direction = this.calculateRotationDirection(start, end, 'y');
       return {
         axis: 'y',
         layerIndex: start[1], 
-        pieces: this.getLayerPieces('y', start[1])
+        pieces: this.getLayerPieces('y', start[1]),
+        direction
       };
     }
     
     if (start[2] === end[2]) {
       // Same Z coordinate - rotate around Z axis
+      const direction = this.calculateRotationDirection(start, end, 'z');
       return {
         axis: 'z',
         layerIndex: start[2],
-        pieces: this.getLayerPieces('z', start[2])
+        pieces: this.getLayerPieces('z', start[2]),
+        direction
       };
     }
 
     // If no shared coordinate, use the midpoint
     const midY = Math.round((start[1] + end[1]) / 2);
+    const direction = this.calculateRotationDirection(start, end, 'y');
     return {
       axis: 'y',
       layerIndex: midY,
-      pieces: this.getLayerPieces('y', midY)
+      pieces: this.getLayerPieces('y', midY),
+      direction
     };
   }
 
@@ -182,28 +183,34 @@ export class GestureLayerDetection {
     // Vertical movement suggests rotation around X or Z axis
     if (start[0] === end[0]) {
       // Same X coordinate - rotate around X axis
+      const direction = this.calculateRotationDirection(start, end, 'x');
       return {
         axis: 'x',
         layerIndex: start[0],
-        pieces: this.getLayerPieces('x', start[0])
+        pieces: this.getLayerPieces('x', start[0]),
+        direction
       };
     }
     
     if (start[2] === end[2]) {
       // Same Z coordinate - rotate around Z axis  
+      const direction = this.calculateRotationDirection(start, end, 'z');
       return {
         axis: 'z',
         layerIndex: start[2],
-        pieces: this.getLayerPieces('z', start[2])
+        pieces: this.getLayerPieces('z', start[2]),
+        direction
       };
     }
 
     // Use midpoint if no shared coordinate
     const midX = Math.round((start[0] + end[0]) / 2);
+    const direction = this.calculateRotationDirection(start, end, 'x');
     return {
       axis: 'x',
       layerIndex: midX,
-      pieces: this.getLayerPieces('x', midX)
+      pieces: this.getLayerPieces('x', midX),
+      direction
     };
   }
 
@@ -217,29 +224,62 @@ export class GestureLayerDetection {
     // Depth movement suggests rotation around X or Y axis
     if (start[0] === end[0]) {
       // Same X coordinate - rotate around X axis
+      const direction = this.calculateRotationDirection(start, end, 'x');
       return {
         axis: 'x',
         layerIndex: start[0],
-        pieces: this.getLayerPieces('x', start[0])
+        pieces: this.getLayerPieces('x', start[0]),
+        direction
       };
     }
     
     if (start[1] === end[1]) {
       // Same Y coordinate - rotate around Y axis
+      const direction = this.calculateRotationDirection(start, end, 'y');
       return {
         axis: 'y', 
         layerIndex: start[1],
-        pieces: this.getLayerPieces('y', start[1])
+        pieces: this.getLayerPieces('y', start[1]),
+        direction
       };
     }
 
     // Use midpoint if no shared coordinate
     const midX = Math.round((start[0] + end[0]) / 2);
+    const direction = this.calculateRotationDirection(start, end, 'x');
     return {
       axis: 'x',
       layerIndex: midX, 
-      pieces: this.getLayerPieces('x', midX)
+      pieces: this.getLayerPieces('x', midX),
+      direction
     };
+  }
+
+  /**
+   * Calculate rotation direction based on gesture movement
+   */
+  private static calculateRotationDirection(
+    start: readonly [number, number, number],
+    end: readonly [number, number, number],
+    axis: 'x' | 'y' | 'z'
+  ): 'clockwise' | 'counterclockwise' {
+    const deltaX = end[0] - start[0];
+    const deltaY = end[1] - start[1];
+    
+    // Proper 3D cube rotation direction logic
+    switch (axis) {
+      case 'x':
+        // X-axis rotation: positive Y movement = clockwise
+        return deltaY > 0 ? 'clockwise' : 'counterclockwise';
+      case 'y':
+        // Y-axis rotation: negative X movement = clockwise  
+        return deltaX < 0 ? 'clockwise' : 'counterclockwise';
+      case 'z':
+        // Z-axis rotation: positive X movement = clockwise
+        return deltaX > 0 ? 'clockwise' : 'counterclockwise';
+      default:
+        return 'clockwise';
+    }
   }
 
   /**
@@ -311,12 +351,12 @@ export class GestureLayerDetection {
             piecePos[2] === roundedPos[2]
           );
           
-          window.console.log('🔍 Checking mesh:', {
-            name: object.name,
-            position: roundedPos,
-            belongsToLayer,
-            targetPieces: layerInfo.pieces
-          });
+          // window.console.log('🔍 Checking mesh:', {
+          //   name: object.name,
+          //   position: roundedPos,
+          //   belongsToLayer,
+          //   targetPieces: layerInfo.pieces
+          // });
           
           if (belongsToLayer) {
             layerMeshes.push(object);
@@ -356,11 +396,11 @@ export class GestureLayerDetection {
     }
     
     layerMeshes.forEach((cubeMesh, index) => {
-      window.console.log('🔍 Creating highlight for mesh:', {
-        index,
-        meshName: cubeMesh.name,
-        position: [cubeMesh.position.x, cubeMesh.position.y, cubeMesh.position.z]
-      });
+      // window.console.log('🔍 Creating highlight for mesh:', {
+      //   index,
+      //   meshName: cubeMesh.name,
+      //   position: [cubeMesh.position.x, cubeMesh.position.y, cubeMesh.position.z]
+      // });
       
       const pos = cubeMesh.position;
       const roundedPos = [Math.round(pos.x), Math.round(pos.y), Math.round(pos.z)];
@@ -417,12 +457,12 @@ export class GestureLayerDetection {
           highlightMesh.rotation.set(Math.PI / 2, 0, 0);
         }
         
-        window.console.log('🔍 External face highlight created:', {
-          name: highlightMesh.name,
-          face: faceInfo.face,
-          position: [highlightMesh.position.x, highlightMesh.position.y, highlightMesh.position.z],
-          rotation: [highlightMesh.rotation.x, highlightMesh.rotation.y, highlightMesh.rotation.z]
-        });
+        // window.console.log('🔍 External face highlight created:', {
+        //   name: highlightMesh.name,
+        //   face: faceInfo.face,
+        //   position: [highlightMesh.position.x, highlightMesh.position.y, highlightMesh.position.z],
+        //   rotation: [highlightMesh.rotation.x, highlightMesh.rotation.y, highlightMesh.rotation.z]
+        // });
         
         // Add to cube group so it rotates with cube
         cubeGroup.add(highlightMesh);

@@ -73,7 +73,7 @@ export class DebugLogger {
   static warn(component: string, message: string, data?: any) {
     this.addToHistory('WARN', component, message, data);
     if (this.isEnabled() && this.level >= DebugLevel.WARN) {
-      window.console.warn(`${this.prefix} [${component}] WARN:`, message, data || '');
+      window.console.log(`${this.prefix} [${component}] WARN:`, message, data || '');
     }
   }
 
