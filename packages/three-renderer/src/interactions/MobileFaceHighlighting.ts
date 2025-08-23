@@ -54,9 +54,9 @@ export class MobileFaceHighlighting {
   private initializeMaterials(): void {
     this.touchPointGeometry = new THREE.RingGeometry(0.02, 0.05, 8);
     this.touchPointMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff6b35,
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.2
     });
     this.initializeHighlightMaterials();
   }
@@ -79,8 +79,8 @@ export class MobileFaceHighlighting {
       // Mobile-optimized highlight material with reduced complexity
       const highlightMaterial = new THREE.MeshLambertMaterial({
         transparent: true,
-        opacity: 0.3,
-        emissive: new THREE.Color(0x00ff88),
+        opacity: 0.2,
+        emissive: new THREE.Color(0xffffff),
         emissiveIntensity: 0.2,
         side: THREE.DoubleSide,
       });
@@ -209,7 +209,7 @@ export class MobileFaceHighlighting {
         // Adjust intensity for mobile performance and battery
         const adjustedIntensity = intensity * this.feedbackState.feedbackIntensity;
         (highlightMaterial as THREE.MeshLambertMaterial).emissiveIntensity = adjustedIntensity * 0.2;
-        (highlightMaterial as THREE.MeshLambertMaterial).opacity = adjustedIntensity * 0.3;
+        (highlightMaterial as THREE.MeshLambertMaterial).opacity = adjustedIntensity * 0.2;
         
         faceMesh.material = highlightMaterial;
       }

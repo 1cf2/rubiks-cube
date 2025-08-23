@@ -232,16 +232,16 @@ export class FaceHighlighting {
           feedback.targetMesh.position.z
         ];
         
-        window.console.log('🎯 Using target mesh directly:', {
-          meshUuid: feedback.targetMesh.uuid,
-          position: piecePosition,
-          face: feedback.face,
-          intersectionPoint: feedback.intersectionPoint
-        });
+        // window.console.log('🎯 Using target mesh directly:', {
+        //   meshUuid: feedback.targetMesh.uuid,
+        //   position: piecePosition,
+        //   face: feedback.face,
+        //   intersectionPoint: feedback.intersectionPoint
+        // });
         
         // Keep it simple - just use the face that was detected by raycasting
         // The raycasting system already determined which face was clicked
-        window.console.log('🎯 Using simple face-based approach');
+        // window.console.log('🎯 Using simple face-based approach');
         this.positionHighlightAtPiecePosition(highlightMesh, feedback.face, piecePosition);
       }
       // Track the specific piece if intersection point is provided (fallback)
@@ -351,39 +351,39 @@ export class FaceHighlighting {
     const [x, y, z] = piecePosition;
     const offset = 0.502; // Half cube size (0.95/2) + small buffer to appear on surface
     
-    window.console.log('🎯 Positioning highlight at tracked piece surface:', { face, piecePosition: [x, y, z] });
+    // window.console.log('🎯 Positioning highlight at tracked piece surface:', { face, piecePosition: [x, y, z] });
     
     // Position highlight on the specific face surface of the piece
     switch (face) {
       case FacePosition.FRONT:
         mesh.position.set(x, y, z + offset);
         mesh.rotation.set(0, 0, 0);
-        window.console.log('🎯 FRONT surface highlight at:', { x, y, z: z + offset });
+        // window.console.log('🎯 FRONT surface highlight at:', { x, y, z: z + offset });
         break;
       case FacePosition.BACK:
         mesh.position.set(x, y, z - offset);
         mesh.rotation.set(0, Math.PI, 0);
-        window.console.log('🎯 BACK surface highlight at:', { x, y, z: z - offset });
+        // window.console.log('🎯 BACK surface highlight at:', { x, y, z: z - offset });
         break;
       case FacePosition.LEFT:
         mesh.position.set(x - offset, y, z);
         mesh.rotation.set(0, -Math.PI / 2, 0);
-        window.console.log('🎯 LEFT surface highlight at:', { x: x - offset, y, z });
+        // window.console.log('🎯 LEFT surface highlight at:', { x: x - offset, y, z });
         break;
       case FacePosition.RIGHT:
         mesh.position.set(x + offset, y, z);
         mesh.rotation.set(0, Math.PI / 2, 0);
-        window.console.log('🎯 RIGHT surface highlight at:', { x: x + offset, y, z });
+        // window.console.log('🎯 RIGHT surface highlight at:', { x: x + offset, y, z });
         break;
       case FacePosition.UP:
         mesh.position.set(x, y + offset, z);
         mesh.rotation.set(-Math.PI / 2, 0, 0);
-        window.console.log('🎯 UP surface highlight at:', { x, y: y + offset, z });
+        // window.console.log('🎯 UP surface highlight at:', { x, y: y + offset, z });
         break;
       case FacePosition.DOWN:
         mesh.position.set(x, y - offset, z);
         mesh.rotation.set(Math.PI / 2, 0, 0);
-        window.console.log('🎯 DOWN surface highlight at:', { x, y: y - offset, z });
+        // window.console.log('🎯 DOWN surface highlight at:', { x, y: y - offset, z });
         break;
     }
   }
@@ -433,7 +433,7 @@ export class FaceHighlighting {
     mesh.visible = true;
     
     const targetOpacity = feedback.opacity ?? 0.2;
-    const color = feedback.color ?? [0.3, 0.7, 1.0];
+    const color = feedback.color ?? [1.0, 1.0, 1.0];
     
     material.color.setRGB(...color);
     
@@ -451,8 +451,8 @@ export class FaceHighlighting {
   ): void {
     mesh.visible = true;
     
-    const targetOpacity = feedback.opacity ?? 0.8; // High opacity for clear mouse down feedback
-    const color = feedback.color ?? [1.0, 0.5, 0.0]; // Pure orange for gesture start
+    const targetOpacity = feedback.opacity ?? 0.2; // 20% transparency
+    const color = feedback.color ?? [1.0, 1.0, 1.0]; // White color
     
     material.color.setRGB(...color);
     
@@ -475,8 +475,8 @@ export class FaceHighlighting {
   ): void {
     mesh.visible = true;
     
-    const targetOpacity = feedback.opacity ?? 0.6;
-    const color = feedback.color ?? [1.0, 0.2, 0.2];
+    const targetOpacity = feedback.opacity ?? 0.2;
+    const color = feedback.color ?? [1.0, 1.0, 1.0];
     
     material.color.setRGB(...color);
     
@@ -498,8 +498,8 @@ export class FaceHighlighting {
   ): void {
     mesh.visible = true;
     
-    const targetOpacity = feedback.opacity ?? 0.15;
-    const color = feedback.color ?? [1.0, 0.3, 0.3];
+    const targetOpacity = feedback.opacity ?? 0.2;
+    const color = feedback.color ?? [1.0, 1.0, 1.0];
     
     material.color.setRGB(...color);
     
@@ -517,8 +517,8 @@ export class FaceHighlighting {
   ): void {
     mesh.visible = true;
     
-    const targetOpacity = feedback.opacity ?? 0.1;
-    const color = feedback.color ?? [0.8, 0.8, 1.0];
+    const targetOpacity = feedback.opacity ?? 0.2;
+    const color = feedback.color ?? [1.0, 1.0, 1.0];
     
     material.color.setRGB(...color);
     
@@ -536,8 +536,8 @@ export class FaceHighlighting {
   ): void {
     mesh.visible = true;
     
-    const targetOpacity = feedback.opacity ?? 0.4;
-    const color = feedback.color ?? [0.2, 1.0, 0.3];
+    const targetOpacity = feedback.opacity ?? 0.2;
+    const color = feedback.color ?? [1.0, 1.0, 1.0];
     
     material.color.setRGB(...color);
     

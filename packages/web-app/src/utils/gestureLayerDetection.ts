@@ -420,9 +420,9 @@ export class GestureLayerDetection {
       facesToHighlight.forEach((faceInfo) => {
         const highlightGeometry = new THREE.PlaneGeometry(0.9, 0.9); // Slightly smaller than piece
         const highlightMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffcc00, // Orange highlight
+          color: 0xffffff, // White highlight
           transparent: true,
-          opacity: 0.7,
+          opacity: 0.2,
           side: THREE.FrontSide,
           depthTest: true,
           depthWrite: false,
