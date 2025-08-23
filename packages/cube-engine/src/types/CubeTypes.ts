@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { CubeColor } from '@rubiks-cube/shared/types/cube';
 
 export type CubeFace = 'front' | 'back' | 'left' | 'right' | 'up' | 'down';
@@ -38,16 +39,6 @@ export enum CubeError {
   STATE_CORRUPTION = 'STATE_CORRUPTION',
   INVALID_FACE_STATE = 'INVALID_FACE_STATE',
 }
-
-// Prevent unused variable warnings by exporting unused enum values
-export const CUBE_ERROR_CONSTANTS = {
-  INVALID_MOVE: CubeError.INVALID_MOVE,
-  ANIMATION_IN_PROGRESS: CubeError.ANIMATION_IN_PROGRESS,
-  WEBGL_CONTEXT_LOST: CubeError.WEBGL_CONTEXT_LOST,
-  PERFORMANCE_DEGRADED: CubeError.PERFORMANCE_DEGRADED,
-  STATE_CORRUPTION: CubeError.STATE_CORRUPTION,
-  INVALID_FACE_STATE: CubeError.INVALID_FACE_STATE,
-} as const;
 
 export type CubeOperationResult<T> = 
   | { readonly success: true; readonly data: T }

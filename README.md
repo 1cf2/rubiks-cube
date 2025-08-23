@@ -17,7 +17,7 @@ A high-performance, browser-based 3D Rubik's Cube game built with modern web tec
 
 ### Prerequisites
 
-- Node.js 16+ and npm
+- Node.js 18+ and npm
 - Modern browser with WebGL support (Chrome 60+, Firefox 60+, Safari 12+, Edge 79+)
 
 ### Installation
@@ -62,7 +62,7 @@ packages/
 
 ### Technology Stack
 
-- **Frontend**: React 18, TypeScript, Three.js 0.160, Webpack 5
+- **Frontend**: React 18, TypeScript 5.9, Three.js 0.160, Webpack 5
 - **3D Graphics**: Three.js with WebGL rendering
 - **Build System**: Lerna monorepo with TypeScript project references
 - **Development**: Hot reload, ESLint, Prettier, Jest testing

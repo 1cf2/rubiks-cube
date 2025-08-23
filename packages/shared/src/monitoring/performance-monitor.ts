@@ -220,9 +220,9 @@ export class PerformanceMonitor {
 
     // Log alert
     if (type === 'critical') {
-      console.error('Performance Alert:', message);
+      window.console.error('Performance Alert:', message);
     } else {
-      console.warn('Performance Alert:', message);
+      window.console.warn('Performance Alert:', message);
     }
 
     // Send alert to monitoring service
@@ -248,7 +248,7 @@ export class PerformanceMonitor {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(metric),
       }).catch(error => {
-        console.warn('Failed to send performance metric:', error);
+        window.console.warn('Failed to send performance metric:', error);
       });
     }
   }
@@ -264,7 +264,7 @@ export class PerformanceMonitor {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(alert),
       }).catch(error => {
-        console.warn('Failed to send performance alert:', error);
+        window.console.warn('Failed to send performance alert:', error);
       });
     }
   }

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /**
  * Touch Interaction Types for Mobile Cube Controls
  * Implements touch gesture recognition and validation

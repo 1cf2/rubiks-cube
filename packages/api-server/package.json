@@ -20,14 +20,16 @@
     "@rubiks-cube/shared": "1.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
+    "typescript": "^5.9.0",
     "ts-node": "^10.0.0",
     "@types/express": "^4.17.0",
     "@types/cors": "^2.8.0",
     "@types/pg": "^8.10.0",
-    "jest": "^29.0.0",
-    "@types/jest": "^29.0.0",
-    "eslint": "^8.0.0"
+    "jest": "^30.0.0",
+    "@types/jest": "^30.0.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1"
   },
   "publishConfig": {
     "access": "public"

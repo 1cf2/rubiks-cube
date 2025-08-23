@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /**
  * 2D Vector interface for screen coordinates and touch positions
  */
@@ -35,7 +36,7 @@ export interface Matrix4 {
 /**
  * Performance-critical function annotation for 16ms execution time
  */
-export type PerformanceCritical<T extends (...args: any[]) => any> = T & {
+export type PerformanceCritical<T extends (...args: never[]) => any> = T & {
   readonly __performanceCritical: true;
   readonly __maxExecutionTime: 16; // milliseconds
 };
@@ -67,15 +68,3 @@ export enum CubeError {
   RAYCASTING_FAILED = 'RAYCASTING_FAILED',
   GESTURE_RECOGNITION_FAILED = 'GESTURE_RECOGNITION_FAILED',
 }
-
-// Prevent unused variable warnings by exporting unused enum values
-export const CUBE_ERROR_CONSTANTS = {
-  INVALID_MOVE: CubeError.INVALID_MOVE,
-  ANIMATION_IN_PROGRESS: CubeError.ANIMATION_IN_PROGRESS,
-  WEBGL_CONTEXT_LOST: CubeError.WEBGL_CONTEXT_LOST,
-  PERFORMANCE_DEGRADED: CubeError.PERFORMANCE_DEGRADED,
-  INVALID_STATE: CubeError.INVALID_STATE,
-  NETWORK_ERROR: CubeError.NETWORK_ERROR,
-  RAYCASTING_FAILED: CubeError.RAYCASTING_FAILED,
-  GESTURE_RECOGNITION_FAILED: CubeError.GESTURE_RECOGNITION_FAILED,
-} as const;

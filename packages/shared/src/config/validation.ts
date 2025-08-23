@@ -174,6 +174,6 @@ export function assertValidConfiguration(config: EnvironmentConfig): void {
   // Log warnings
   const allWarnings = [...envVarResult.warnings, ...configResult.warnings];
   if (allWarnings.length > 0) {
-    console.warn('Configuration warnings:\n', allWarnings.join('\n'));
+    window.console.warn('Configuration warnings:\n', allWarnings.join('\n'));
   }
 }

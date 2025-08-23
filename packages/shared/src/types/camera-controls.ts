@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { Vector3D, Quaternion } from './math';
 
 // Camera state management
@@ -23,7 +24,7 @@ export interface CameraAnimation {
 }
 
 // Easing function type for smooth animations
-export type EasingFunction = (_t: number) => number;
+export type EasingFunction = (t: number) => number;
 
 // View preferences for camera behavior
 export interface ViewPreferences {
@@ -47,14 +48,6 @@ export enum CameraError {
   ZOOM_LIMIT_EXCEEDED = 'ZOOM_LIMIT_EXCEEDED',
   ORBIT_CONSTRAINT_VIOLATION = 'ORBIT_CONSTRAINT_VIOLATION',
 }
-
-// Prevent unused variable warnings by exporting unused enum values
-export const CAMERA_ERROR_CONSTANTS = {
-  INVALID_CAMERA_STATE: CameraError.INVALID_CAMERA_STATE,
-  ANIMATION_IN_PROGRESS: CameraError.ANIMATION_IN_PROGRESS,
-  ZOOM_LIMIT_EXCEEDED: CameraError.ZOOM_LIMIT_EXCEEDED,
-  ORBIT_CONSTRAINT_VIOLATION: CameraError.ORBIT_CONSTRAINT_VIOLATION,
-} as const;
 
 // Auto-rotation configuration
 export interface AutoRotationConfig {

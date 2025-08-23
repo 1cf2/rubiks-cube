@@ -187,7 +187,7 @@ export class ErrorTracker {
       
       sessionStorage.setItem('error-breadcrumbs', JSON.stringify(breadcrumbs));
     } catch (e) {
-      console.warn('Failed to store breadcrumb:', e);
+      window.console.warn('Failed to store breadcrumb:', e);
     }
   }
 
@@ -274,8 +274,10 @@ export class ErrorTracker {
    * Setup console error capture
    */
   private setupConsoleErrorCapture(): void {
+    // eslint-disable-next-line no-console
     const originalConsoleError = console.error;
     
+    // eslint-disable-next-line no-console
     console.error = (...args: any[]) => {
       // Call original console.error
       originalConsoleError.apply(console, args);
@@ -313,7 +315,7 @@ export class ErrorTracker {
   private sendToErrorTrackingService(errorInfo: ErrorInfo): void {
     // In development, just log
     if (process.env['NODE_ENV'] === 'development') {
-      console.error('Captured error:', errorInfo);
+      window.console.error('Captured error:', errorInfo);
       return;
     }
 
@@ -324,7 +326,7 @@ export class ErrorTracker {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(errorInfo),
       }).catch(err => {
-        console.warn('Failed to send error to tracking service:', err);
+        window.console.warn('Failed to send error to tracking service:', err);
       });
     }
 

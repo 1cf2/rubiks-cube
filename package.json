@@ -20,7 +20,15 @@
     "clean": "lerna run clean && rimraf dist",
     "bootstrap": "lerna bootstrap"
   },
-  "keywords": ["rubiks-cube", "3d-game", "threejs", "webgl", "puzzle", "react", "typescript"],
+  "keywords": [
+    "rubiks-cube",
+    "3d-game",
+    "threejs",
+    "webgl",
+    "puzzle",
+    "react",
+    "typescript"
+  ],
   "author": "Rubik's Cube Team",
   "license": "ISC",
   "type": "commonjs",
@@ -50,6 +58,7 @@
     "jest-environment-jsdom": "^30.0.5",
     "lerna": "^8.2.3",
     "mini-css-extract-plugin": "^2.9.4",
+    "rimraf": "^6.0.1",
     "style-loader": "^4.0.0",
     "terser-webpack-plugin": "^5.3.14",
     "ts-jest": "^29.4.1",
