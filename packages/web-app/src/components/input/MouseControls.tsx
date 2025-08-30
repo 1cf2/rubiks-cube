@@ -136,13 +136,26 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     },
     onFaceHover: (face) => {
       updateVisualFeedback(face, face ? 'hover' : 'normal');
+
+      // Debug hover feedback
+      if (face) {
+        window.console.log('🎯 Hover feedback applied:', {
+          face,
+          state: 'hover',
+          color: getColorForState('hover'),
+          opacity: getOpacityForState('hover')
+        });
+      } else {
+        window.console.log('🎯 Hover feedback cleared (no face)');
+      }
+
       const wasOverCube = isOverCube;
       const nowOverCube = face !== null;
-      
+
       if (wasOverCube !== nowOverCube) {
         window.console.log('🎯 Cube hover changed:', { face, isOverCube: nowOverCube });
       }
-      
+
       setIsOverCube(nowOverCube); // Update camera control state
       onFaceHover?.(face);
     },
@@ -167,6 +180,15 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
       }
       
       updateVisualFeedback(face, 'selected', intersectionPoint, mesh, hitNormal);
+
+      // Debug selected feedback
+      window.console.log('🖱️ SELECTED feedback applied:', {
+        face,
+        state: 'selected',
+        color: getColorForState('selected'),
+        opacity: getOpacityForState('selected')
+      });
+
       onFaceSelect?.(face);
     },
     onRotationStart: (command) => {
@@ -405,7 +427,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   const getColorForState = (state: VisualFeedback['state']): readonly [number, number, number] => {
     switch (state) {
       case 'hover': return [0.3, 0.7, 1.0] as const; // Light blue
-      case 'selected': return [1.0, 0.5, 0.0] as const; // Pure orange for mouse down feedback
+      case 'selected': return [0.1, 0.1, 0.1] as const; // Highlight for mouse down feedback
       case 'rotating': return [1.0, 0.2, 0.2] as const; // Red
       case 'blocked': return [1.0, 0.3, 0.3] as const; // Light red
       case 'preview': return [0.8, 0.8, 1.0] as const; // Very light blue
@@ -435,6 +457,23 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   const [isOverCube, setIsOverCube] = useState(false);
   const [isDraggingCamera, setIsDraggingCamera] = useState(false);
   const lastCameraOrbitRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Update spotlight positions when camera moves to follow camera movement
+  const updateSpotlightsForCameraMovement = useCallback((camera: THREE.Camera, scene: THREE.Scene) => {
+    if (!camera || !scene) return;
+
+    try {
+      // Call the global function to update spotlight positions relative to camera
+      if (typeof window !== 'undefined' && (window as any).updateSpotlightsForCamera) {
+        (window as any).updateSpotlightsForCamera(camera);
+        window.console.log('💡 Spotlights repositioned relative to camera movement');
+      } else {
+        window.console.log('⚠️ Camera-relative spotlight update function not available');
+      }
+    } catch (error) {
+      window.console.error('❌ Failed to update spotlights for camera movement:', error);
+    }
+  }, []);
 
   // Use handlers from useMouseGestures hook with camera control integration
   const handleContainerMouseDown = useCallback((event: React.MouseEvent) => {
@@ -480,18 +519,23 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         // Apply camera orbit with high sensitivity to compensate for OrbitCameraManager's 0.01 factor
         const sensitivity = 1.0; // Raw delta values since OrbitCameraManager applies 0.01 internally
         const result = cameraControls.orbitCamera(deltaX * sensitivity, deltaY * sensitivity);
-        
+
         if (!result.success) {
           window.console.error('🔄 Orbit failed:', result.error);
         } else {
           window.console.log('🔄 Orbit applied successfully');
+
+          // Update spotlight positions to follow camera movement
+          if (camera && scene) {
+            updateSpotlightsForCameraMovement(camera, scene);
+          }
         }
-        
+
         // Update last position
         lastCameraOrbitRef.current = { x: event.clientX, y: event.clientY };
       }
     }
-  }, [isEnabled, isDraggingCamera, enableCameraControls, handlers, cameraControls]);
+  }, [isEnabled, isDraggingCamera, enableCameraControls, handlers, cameraControls, camera, scene, updateSpotlightsForCameraMovement]);
 
   const handleContainerMouseUp = useCallback((event: React.MouseEvent) => {
     if (!isEnabled) return;
@@ -545,8 +589,13 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     const result = cameraControls.zoomCamera(delta);
     if (!result.success) {
       window.console.error('🔧 Zoom failed:', result.error);
+    } else {
+      // Refresh spotlight lighting after zoom for consistent shadows
+      if (camera && scene) {
+        updateSpotlightsForCameraMovement(camera, scene);
+      }
     }
-  }, [isEnabled, enableCameraControls, cameraControls]);
+  }, [isEnabled, enableCameraControls, cameraControls, camera, scene, updateSpotlightsForCameraMovement]);
 
   // Reset interaction when disabled
   useEffect(() => {

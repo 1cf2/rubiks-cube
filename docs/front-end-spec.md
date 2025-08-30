@@ -1,6 +1,7 @@
 # Rubik's Cube Web Application - Front-End Specification
 
 ## Table of Contents
+
 1. [Introduction](#introduction)
 2. [UX Goals & Principles](#ux-goals--principles)
 3. [Information Architecture](#information-architecture)
@@ -25,20 +26,20 @@ The application features sophisticated 3D cube interactions with intelligent lay
 
 ### Target User Personas
 
-**Primary: Learning Enthusiasts** (60% of users)
-- Want to understand cube mechanics while having fun
-- Need clear visual feedback and forgiving interactions
-- Expect smooth performance but prioritize understanding over speed
+- **Primary: Learning Enthusiasts** (60% of users)
+  - Want to understand cube mechanics while having fun
+  - Need clear visual feedback and forgiving interactions
+  - Expect smooth performance but prioritize understanding over speed
 
-**Secondary: Experienced Cubers** (30% of users)  
-- Demand precise control and minimal visual interference
-- Expect advanced features like algorithm recording
-- Performance and responsiveness are critical
+- **Secondary: Experienced Cubers** (30% of users)
+  - Demand precise control and minimal visual interference
+  - Expect advanced features like algorithm recording
+  - Performance and responsiveness are critical
 
-**Tertiary: Casual Explorers** (10% of users)
-- One-time or infrequent users exploring out of curiosity
-- Need immediate gratification and obvious interaction cues
-- Most likely to abandon if confused
+- **Tertiary: Casual Explorers** (10% of users)
+  - One-time or infrequent users exploring out of curiosity
+  - Need immediate gratification and obvious interaction cues
+  - Most likely to abandon if confused
 
 ### Usability Goals
 
@@ -63,7 +64,7 @@ The application features sophisticated 3D cube interactions with intelligent lay
 
 **Application Structure:**
 
-```
+```text
 Rubik's Cube Web Application
 ├── Main Cube Interface
 │   ├── 3D Cube Viewport (Primary interaction area)
@@ -80,11 +81,13 @@ Rubik's Cube Web Application
 ```
 
 **Navigation Hierarchy:**
+
 - **Level 0:** Single-page application with persistent cube view
 - **Level 1:** Contextual controls that appear on interaction
 - **Level 2:** Settings and preferences (minimal overlay)
 
 **Information Priority:**
+
 1. **Primary:** 3D cube and immediate interaction feedback
 2. **Secondary:** Current interaction state (hover, drag, rotate)
 3. **Tertiary:** Controls and settings
@@ -96,9 +99,9 @@ Rubik's Cube Web Application
 
 ### Core User Journey: Cube Manipulation
 
-**Primary Flow: Face Rotation with Smart Layer Selection**
+#### Primary Flow: Face Rotation with Smart Layer Selection
 
-```
+```text
 1. User approaches cube interface
    ├── Cube renders in default solved state
    ├── Hover states provide immediate visual feedback
@@ -132,7 +135,7 @@ Rubik's Cube Web Application
 
 ### Smart Layer Selection Logic Flow
 
-```
+```text
 Piece Type Detection:
 ├── Corner Piece (3 visible faces)
 │   ├── If detected face = UP/DOWN → Override to side face
@@ -180,13 +183,31 @@ Primary Cube Colors:
 ├── Blue (#0000FF) - Front face default
 └── Green (#008000) - Back face default
 
-Interactive Feedback Colors:
-├── Hover State: Light Blue (#ADD8E6, 20% opacity)
-├── Selected State: Orange (#FFA500, 80% opacity)
-├── Layer Highlight Primary: Orange (#FFCC00, 50% opacity)
-├── Layer Highlight Secondary: Light Blue (#66CCFF, 30% opacity)
-├── Success Flash: Green (#00FF00, 40% opacity)
-└── Error/Blocked: Light Red (#FF6B6B, 15% opacity)
+Core Highlight System (FaceHighlighting.ts Implementation):
+├── Base Highlight Material:
+│   ├── Color: White (0xffffff)
+│   ├── Opacity: 0 (transparent by default)
+│   ├── Blending: AdditiveBlending
+│   ├── Depth Test: false, Depth Write: false
+│   ├── Render Order: 1000 (on top)
+├── Geometry Size: PlaneGeometry(0.95, 0.95) - fits individual cube pieces exactly
+
+Dynamic Highlight States:
+├── Normal State: opacity = 0, visible = false (complete transparency)
+├── Hover State: opacity configurable (default 0.2), color set via feedback.color
+├── Selected State: opacity = 0.2 (instant) → animates to target (default 0.4), pulse animation
+├── Rotating State: opacity = 0.3 (faster animation, 150ms period)
+├── Blocked State: opacity = 0.1 (low opacity, slow fade)
+├── Preview State: opacity = 0.15 (subtle preview for direction indication)
+├── Success State: opacity = 0.3 → auto-fade to 0 after 300ms
+
+Animation Performance:
+├── Fade Duration: 200ms (configurable per constructor)
+├── Pulse Period: 300ms for selected state, 150ms for rotating state
+├── Transition: opacity (startOpacity → targetOpacity) with ease-out timing
+├── Frame Rate: 60fps target for all highlight animations
+
+File Reference: packages/three-renderer/src/interactions/FaceHighlighting.ts:68-76
 ```
 
 **Typography & Labeling:**
@@ -198,7 +219,8 @@ Interactive Feedback Colors:
 ### Spatial Design Principles
 
 **3D Viewport Layout:**
-```
+
+```text
 ┌─────────────────────────────────────┐
 │           Camera Controls           │
 │                (Hidden)             │
@@ -271,7 +293,8 @@ Interactive Feedback Colors:
 ### Browser Support & Compatibility
 
 **Target Browser Matrix:**
-```
+
+```text
 Tier 1 (Full Feature Support):
 ├── Chrome 90+ (Primary development target)
 ├── Firefox 85+ (WebGL compatibility focus)
@@ -304,6 +327,7 @@ Not Supported:
 - **Degradation Strategy:** Reduce highlight quality before reducing frame rate
 
 **Memory Management:**
+
 ```javascript
 // Performance Budgets
 const PERFORMANCE_LIMITS = {
@@ -313,6 +337,119 @@ const PERFORMANCE_LIMITS = {
   animationFrameTime: '16ms' // Target frame time
 };
 ```
+
+**Face Rotation Animation Mechanics:**
+
+**Rotation Mechanics Overview:**
+The cube implements authentic face rotation mechanics where all 9 pieces of a selected face rotate together around the face center point, simulating real Rubik's cube behavior.
+
+**Face Center Calculation:**
+```typescript
+// Face center coordinates for rotation axis (absolute positions)
+getFaceCenter(face: FacePosition): THREE.Vector3 {
+  switch (face) {
+    case FacePosition.FRONT: return new THREE.Vector3(0, 0, 1);   // Z+1
+    case FacePosition.BACK:  return new THREE.Vector3(0, 0, -1);  // Z-1
+    case FacePosition.LEFT:  return new THREE.Vector3(-1, 0, 0);  // X-1
+    case FacePosition.RIGHT: return new THREE.Vector3(1, 0, 0);   // X+1
+    case FacePosition.UP:    return new THREE.Vector3(0, 1, 0);   // Y+1
+    case FacePosition.DOWN:  return new THREE.Vector3(0, -1, 0);  // Y-1
+  }
+}
+```
+
+**Rotation Implementation:**
+```typescript
+// All 9 pieces rotate together around face center
+rotateFacePieces(state: AnimationState, deltaAngle: number): void {
+  const rotation = new THREE.Quaternion();
+  rotation.setFromAxisAngle(state.rotationAxis, deltaAngle);
+  const faceCenter = this.getFaceCenter(state.animation.face);
+
+  state.facePieces.forEach(piece => {
+    // 1. Calculate relative position from face center
+    const relativePosition = piece.position.clone().sub(faceCenter);
+
+    // 2. Rotate position around face center
+    relativePosition.applyQuaternion(rotation);
+
+    // 3. Update piece position relative to face center
+    piece.position.copy(faceCenter.clone().add(relativePosition));
+
+    // 4. Apply rotation to piece itself
+    piece.quaternion.multiplyQuaternions(rotation, piece.quaternion);
+  });
+}
+```
+
+**Critical Implementation Details:**
+- **Face Mapping Updates:** `initializeFaceMeshes()` called after rotation completion to remap pieces to new faces
+- **Position Snapping:** Pieces snapped to grid after animation using `Math.round()` for precision
+- **Quaternion Rotation:** Proper quaternion multiplication to maintain rotation consistency
+- **Animation Easing:** Ease-out function (1 - Math.pow(1 - progress, 3)) for natural movement feel
+
+**File Reference:** See `packages/three-renderer/src/animations/FaceRotationAnimator.ts:274-294`
+
+### Enhanced Gesture Layer Detection System
+
+**Gesture-to-Layer Mapping Overview:**
+The system implements intelligent layer detection from user gestures, determining which cube layer to rotate based on multi-piece interactions and direction vectors.
+
+**Layer Detection Algorithm:**
+```typescript
+// Primary gesture detection function
+detectLayerFromGesture(startPiece, endPiece): GestureLayerInfo | null {
+  // Normalize positions to grid (-1, 0, 1)
+  start = startPiece.map(coord => Math.round(coord));
+  end = endPiece.map(coord => Math.round(coord));
+
+  // Calculate gesture vector
+  gestureVector = [end[0]-start[0], end[1]-start[1], end[2]-start[2]];
+
+  return analyzeGestureVector(start, end, gestureVector);
+}
+```
+
+**Rotation Direction Calculation:**
+```typescript
+// Proper 3D cube rotation direction logic
+calculateRotationDirection(start, end, axis): 'clockwise' | 'counterclockwise' {
+  switch (axis) {
+    case 'x':
+      // X-axis: positive Y movement = clockwise
+      return deltaY > 0 ? 'clockwise' : 'counterclockwise';
+    case 'y':
+      // Y-axis: negative X movement = clockwise
+      return deltaX < 0 ? 'clockwise' : 'counterclockwise';
+    case 'z':
+      // Z-axis: positive X movement = clockwise
+      return deltaX > 0 ? 'clockwise' : 'counterclockwise';
+  }
+}
+```
+
+**Layer Priority Logic:**
+1. **Shared Coordinate Priority**: Pieces in same X/Y/Z plane get highest priority for layer selection
+2. **Gesture Vector Analysis**: Dominant movement axis determines rotation axis
+3. **Midpoint Fallacy**: When no shared coordinates, use geometric midpoint
+4. **Piece Position Snapping**: All coordinates rounded to nearest grid position (-1, 0, 1)
+
+**External Face Highlighting:**
+- **Algorithm**: Identifies which faces of each piece are visible externally based on position
+- **Highlight Creation**: Creates 0.9×0.9 plane geometry positioned 0.51 units outside each external face
+- **Rendering**: Uses renderOrder: 1002 to ensure visibility over cube geometry
+- **Material Properties**: Transparent white with 20% opacity, depthTest enabled, depthWrite disabled
+
+**File References:**
+- Core Detection: `packages/web-app/src/utils/gestureLayerDetection.ts:17-50`
+- Direction Calculation: `packages/web-app/src/utils/gestureLayerDetection.ts:261-283`
+- Face Highlighting: `packages/web-app/src/utils/gestureLayerDetection.ts:381-475`
+
+**Key Implementation Features:**
+- **Robust Grid Positioning**: Eliminates floating-point precision issues
+- **Multi-Axis Support**: Handles all three rotation axes with proper direction mapping
+- **Visual Feedback**: Creates comprehensive highlights for entire rotating layer
+- **Integration Ready**: Seamlessly integrates with FaceRotationAnimator
 
 **Loading Performance:**
 - **Initial Load:** <3 seconds on 3G connection
@@ -327,7 +464,8 @@ const PERFORMANCE_LIMITS = {
 ### Code Organization & Architecture
 
 **Component Structure:**
-```
+
+```text
 src/components/
 ├── input/
 │   ├── MouseControls.tsx (Main interaction logic)
@@ -433,6 +571,7 @@ src/components/
 ### Analytics Implementation
 
 **Event Tracking:**
+
 ```javascript
 // Key interaction events to track
 trackEvent('cube_interaction', {
@@ -445,6 +584,7 @@ trackEvent('cube_interaction', {
 ```
 
 **Performance Monitoring:**
+
 - **Real User Monitoring (RUM):** Frame rate and interaction latency
 - **Error Tracking:** WebGL failures and graceful degradation
 - **A/B Testing Framework:** For UI/UX improvements
@@ -467,6 +607,6 @@ The specification balances technical implementation details with user experience
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: August 2025*  
+*Document Version: 1.0*
+*Last Updated: August 30, 2025*
 *Author: UX Expert - Sally*

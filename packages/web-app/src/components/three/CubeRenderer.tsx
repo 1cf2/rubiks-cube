@@ -117,6 +117,10 @@ export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating =
             cubeMaterials[5] = materials.black;
           }
           
+          // Enable shadow casting and receiving for spot lighting effects
+          cube.castShadow = true;
+          cube.receiveShadow = true;
+
           cube.material = cubeMaterials;
           cubeGroup.add(cube);
         }

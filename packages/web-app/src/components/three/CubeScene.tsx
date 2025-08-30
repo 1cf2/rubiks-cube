@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Group } from 'three';
 import { ThreeScene, useThreeContext } from './ThreeScene';
 import { CubeRenderer } from './CubeRenderer';
@@ -15,6 +15,15 @@ const CubeSceneContent: React.FC = () => {
   const [cubeGroup, setCubeGroup] = useState<Group | null>(null);
   const [cubeStateVersion, setCubeStateVersion] = useState(0); // Track cube state changes
   const animatorRef = useRef<FaceRotationAnimator | null>(null);
+  const lightingRefreshRef = useRef<(() => void) | null>(null);
+
+  // Initialize lighting refresh function
+  const initializeLightingRefresh = useCallback(() => {
+    if (typeof window !== 'undefined' && (window as any).refreshCubeLighting) {
+      lightingRefreshRef.current = (window as any).refreshCubeLighting;
+      window.console.log('💡 Lighting refresh function initialized');
+    }
+  }, []);
 
   if (!scene) {
     return null;
@@ -22,7 +31,7 @@ const CubeSceneContent: React.FC = () => {
 
   const handleCubeGroupReady = (group: Group) => {
     setCubeGroup(group);
-    
+
     // Initialize the FaceRotationAnimator with the cube group
     if (group) {
       animatorRef.current = new FaceRotationAnimator({
@@ -35,11 +44,22 @@ const CubeSceneContent: React.FC = () => {
         },
         onAnimationComplete: (animation) => {
           window.console.log('✅ Animation completed:', animation);
+
+          // Refresh spotlight lighting after rotation completes
+          // This ensures shadows and lighting are properly updated
+          if (lightingRefreshRef.current) {
+            lightingRefreshRef.current();
+          } else if (typeof window !== 'undefined' && (window as any).refreshCubeLighting) {
+            (window as any).refreshCubeLighting();
+          }
         },
         onError: (error, message) => {
           window.console.error('❌ Animation error:', error, message);
         },
       });
+
+      // Initialize lighting refresh function after cube is ready
+      setTimeout(() => initializeLightingRefresh(), 100);
     }
   };
 
@@ -155,8 +175,10 @@ const CubeSceneContent: React.FC = () => {
       />
       
       {/* Debug controls - shown in development or when debug flag is enabled */}
-      <DebugControls 
-        isVisible={featureFlags.getFlag('enableDevelopmentTools')} 
+      <DebugControls
+        isVisible={featureFlags.getFlag('enableDevelopmentTools')}
+        camera={camera}
+        scene={scene}
       />
     </>
   );
