@@ -8,7 +8,7 @@ The Three.js Renderer package provides 3D rendering capabilities for the Rubik's
 
 ### FaceRotationAnimator
 
-Handles authentic face rotation mechanics where all 9 pieces rotate together around the face center.
+Handles authentic face rotation mechanics where all 9 pieces rotate together around the face center. Includes automatic spotlight lighting refresh after rotation completion.
 
 ```typescript
 import { FaceRotationAnimator } from '@rubiks-cube/three-renderer';
@@ -20,23 +20,90 @@ const animator = new FaceRotationAnimator(scene, cubeGroup);
 
 **`rotateFacePieces(face: Face, rotation: number, duration: number): Promise<void>`**
 - Rotates all pieces of a face around the face center
-- Uses proper rotation matrix calculations
+- Uses proper rotation matrix calculations with quaternion-based transformations
 - Returns promise that resolves when animation completes
-- Performance: 60fps target maintained
+- Automatically updates spotlight lighting and shadow maps on completion
+- Performance: Maintains 60fps target with sub-millisecond lighting refresh
+
+**`initializeFaceMeshes(): void`** (called automatically after rotations)
+- Re-maps face piece associations after cube rotations
+- Ensures spotlight targeting remains accurate
+- Critical for maintaining lighting consistency after state changes
 
 **`getFaceCenter(face: Face): THREE.Vector3`**
 - Calculates the center point of a face
-- Used as rotation pivot point
-- Thread-safe and cached for performance
+- Used as rotation pivot point for precise rotations
+- Thread-safe and cached for optimal performance
 
 **`snapToGrid(position: THREE.Vector3): THREE.Vector3`**
 - Snaps piece positions to exact grid coordinates
 - Ensures precision after rotations
 - Prevents floating-point drift
 
+## Advanced Lighting System
+
+The renderer implements a sophisticated camera-relative spotlight system that provides cinematic lighting effects and maintains visual consistency during camera movement.
+
+### Spotlight System Architecture
+
+```typescript
+interface SpotlightConfig {
+  name: string;
+  relativePosition: THREE.Vector3;
+  targetOffset: THREE.Vector3;
+  intensity: number;
+  distance: number;
+  angle: number;
+  color: number;
+  shadowMapSize: { width: number; height: number };
+}
+
+class CameraRelativeLighting {
+  private spotlights: THREE.SpotLight[];
+  private scene: THREE.Scene;
+  private camera: THREE.Camera;
+
+  updateSpotlightsRelativeToCamera(): void {
+    // Position and target all spotlights relative to current camera position
+    // Maintains consistent lighting angles regardless of camera orientation
+    // Updates shadow maps for optimal rendering
+  }
+}
+```
+
+### Lighting Methods
+
+**`updateSpotlightsRelativeToCamera(camera: THREE.Camera): void`**
+- Repositions all spotlights relative to current camera placement
+- Maintains consistent illumination angles throughout camera movement
+- Updates shadow maps for real-time lighting accuracy
+- Performance: Sub-millisecond execution maintaining 60fps
+
+**`refreshSpotlightShadows(): void`**
+- Forces shadow map updates for all active spotlights
+- Called automatically after cube rotations
+- Ensures lighting consistency during state changes
+- Memory efficient with optimized shadow resolution settings
+
+### Camera Orbit Lighting Integration
+
+The lighting system integrates seamlessly with camera controls:
+
+```typescript
+// When camera moves (orbit, zoom), lighting system automatically:
+// 1. Repositions spotlights relative to new camera position
+// 2. Updates spotlight target positions
+// 3. Refreshes shadow maps
+// 4. Maintains consistent lighting angles from any camera perspective
+
+cameraControls.orbitCamera(deltaX, deltaY).then(() => {
+  lightingSystem.updateSpotlightsRelativeToCamera(camera);
+});
+```
+
 ### MouseInteractionHandler
 
-Processes mouse gestures for cube and face interactions.
+Processes mouse gestures for cube and face interactions with integrated lighting coordination.
 
 ```typescript
 import { MouseInteractionHandler } from '@rubiks-cube/three-renderer';

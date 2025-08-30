@@ -46,7 +46,17 @@ The application features sophisticated 3D cube interactions with intelligent lay
 - **Gesture Recognition:** 95% accuracy in detecting intended face rotations within first 3 attempts
 - **Visual Clarity:** Layer highlighting visible within 100ms of gesture initiation
 - **Performance Consistency:** Maintain 60fps during all interactions across target devices
+- **Lighting Performance:** Sub-millisecond spotlight updates during camera movement
+- **Debug Monitoring:** Real-time performance metrics in development mode
 - **Learning Curve:** New users complete first successful rotation within 30 seconds
+
+### Debug and Development Features
+
+- **Comprehensive Debug Interface:** Real-time controls for camera positioning, rotation, and field of view
+- **Lighting System Controls:** Individual adjustment of spotlight intensity and cone angles
+- **Performance Monitoring:** Frame rate tracking and input latency measurement
+- **Feature Flag System:** Granular control over experimental features in development mode
+- **Visual Debug Helpers:** Spotlight helper cones and interaction visualization overlays
 
 ### Design Principles
 

@@ -13,11 +13,92 @@ This guide covers advanced integration patterns between Three.js rendering syste
 interface ThreeComponent {
   readonly object3D: THREE.Object3D;
   readonly isInitialized: boolean;
-  
+
   initialize(scene: THREE.Scene): void;
   update(deltaTime: number): void;
   dispose(): void;
 }
+```
+
+### Advanced Lighting System
+
+The application implements a sophisticated camera-relative spotlight system that follows camera movement for consistent lighting angles throughout the user experience.
+
+#### Camera-Relative Spotlight Configuration
+
+```typescript
+interface SpotlightConfig {
+  name: string;
+  relativePosition: THREE.Vector3;    // Position relative to camera
+  targetOffset: THREE.Vector3;       // Target offset relative to camera direction
+  intensity: number;
+  distance: number;
+  angle: number;                    // Spotlight cone angle
+  color: number;                   // Hex color value (0xffffff for white)
+  shadowMapSize: { width: number; height: number };
+}
+
+// Configuration maintains consistent lighting angles:
+const spotlightConfig = [
+  {
+    name: 'keyLight',
+    relativePosition: new THREE.Vector3(6, 8, 6),    // Front-top-right illumination
+    targetOffset: new THREE.Vector3(2, 2, 2),         // Dramatic angled target
+    intensity: 9.0,                                   // Very bright key light
+    distance: 18,
+    angle: Math.PI / 4,                               // Wide cone for coverage
+    color: 0xffffff,                                 // Pure white illumination
+    shadowMapSize: { width: 4096, height: 4096 }      // High-res shadows
+  },
+  // Fill, rim, and bounce lights configured for balanced lighting...
+];
+```
+
+#### Real-Time Lighting Updates
+
+```typescript
+const updateSpotlightsRelativeToCamera = (camera: THREE.Camera, spotlights: THREE.SpotLight[]) => {
+  spotlights.forEach((spotlight) => {
+    // Calculate relative position based on current camera orientation
+    const relativePos = spotlight.userData.relativePosition.clone();
+    const rotatedPos = relativePos.clone().applyQuaternion(camera.quaternion);
+
+    spotlight.position.copy(camera.position.clone().add(rotatedPos));
+
+    // Update targeting for consistent illumination angles
+    const targetPos = camera.position.clone()
+      .add(cameraDirection.clone().multiplyScalar(8)) // Distance ahead
+      .add(rotatedTarget);
+
+    spotlight.target.position.copy(targetPos);
+    spotlight.target.updateMatrixWorld();
+
+    // Maintain shadow quality
+    spotlight.shadow.needsUpdate = true;
+  });
+};
+```
+
+### Debug Controls Integration
+
+The application includes comprehensive debug controls accessible through feature flags and overlay toggle:
+
+```typescript
+// Debug controls for lighting and camera adjustments
+const debugControls = {
+  camera: {
+    position: { x: -10…10, y: -10…10, z: -10…10 },     // Real-time camera positioning
+    rotation: { x: -180…180°, y: -180…180°, z: -180…180° }, // Degree-based rotation
+    fov: { min: 20°, max: 120° }                         // Field of view adjustment
+  },
+  spotlights: {
+    key: { intensity: 0…10, angle: 1…90° },
+    fill: { intensity: 0…10, angle: 1…90° },
+    rim: { intensity: 0…10, angle: 1…90° },
+    bounce: { intensity: 0…10, angle: 1…90° }
+  }
+};
+```
 
 // Example implementation
 class CubePiece implements ThreeComponent {
