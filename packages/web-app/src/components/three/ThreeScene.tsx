@@ -256,6 +256,11 @@ export const ThreeSceneProvider: React.FC<{ children?: React.ReactNode; onLighti
       // Initial positioning relative to camera view
       updateSpotlightsRelativeToCamera(camera, spotlightsRef.current);
 
+      // Reposition spotlights after camera controls finish loading (camera state restored from localStorage)
+      setTimeout(() => {
+        updateSpotlightsRelativeToCamera(camera, spotlightsRef.current);
+      }, 500);
+
       // Lighting refresh function - called after cube rotations complete
       const refreshLighting = () => {
         if (!scene || !renderer) return;

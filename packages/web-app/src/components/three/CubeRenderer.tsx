@@ -118,6 +118,7 @@ export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating =
           cube.receiveShadow = true;
 
           cube.material = cubeMaterials;
+
           cubeGroup.add(cube);
         }
       }
@@ -128,10 +129,11 @@ export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating =
     // Notify parent component that cube group is ready
     onCubeGroupReady?.(cubeGroup);
 
+
     // Cleanup
     return () => {
       scene.remove(cubeGroup);
-      
+
       // Dispose of geometries and materials
       cubeGroup.traverse((child) => {
         if (child instanceof Mesh) {
