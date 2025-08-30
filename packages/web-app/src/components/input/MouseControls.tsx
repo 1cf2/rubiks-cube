@@ -427,7 +427,7 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   const getColorForState = (state: VisualFeedback['state']): readonly [number, number, number] => {
     switch (state) {
       case 'hover': return [0.3, 0.7, 1.0] as const; // Light blue
-      case 'selected': return [0.1, 0.1, 0.1] as const; // Highlight for mouse down feedback
+      case 'selected': return [0.05, 0.05, 0.05] as const; // Highlight for mouse down feedback
       case 'rotating': return [1.0, 0.2, 0.2] as const; // Red
       case 'blocked': return [1.0, 0.3, 0.3] as const; // Light red
       case 'preview': return [0.8, 0.8, 1.0] as const; // Very light blue

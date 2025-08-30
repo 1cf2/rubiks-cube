@@ -418,11 +418,11 @@ export class GestureLayerDetection {
       
       // Create highlight for each visible external face
       facesToHighlight.forEach((faceInfo) => {
-        const highlightGeometry = new THREE.PlaneGeometry(0.9, 0.9); // Slightly smaller than piece
+        const highlightGeometry = new THREE.PlaneGeometry(0.95, 0.95); // Slightly smaller than piece
         const highlightMaterial = new THREE.MeshBasicMaterial({
           color: 0xffffff, // White highlight
           transparent: true,
-          opacity: 0.2,
+          opacity: 0.1, // Very subtle
           side: THREE.FrontSide,
           depthTest: true,
           depthWrite: false,
@@ -433,7 +433,7 @@ export class GestureLayerDetection {
         highlightMesh.renderOrder = 1002;
         
         // Position highlight on the external face surface
-        const offset = 0.51; // Position just outside the cube piece (cube pieces are 1x1x1)
+        const offset = 0.476; // Position just outside the cube piece (cube pieces are 1x1x1)
         const [normalX, normalY, normalZ] = faceInfo.normal as [number, number, number];
         
         highlightMesh.position.set(

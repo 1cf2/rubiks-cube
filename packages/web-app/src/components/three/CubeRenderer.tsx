@@ -71,50 +71,46 @@ export const CubeRenderer: React.FC<CubeRendererProps> = ({ scene, isAnimating =
           cube.userData = { x, y, z, visibleFaces };
           
           // Determine which faces are visible and assign colors
-          const cubeMaterials: Material[] = [];
-          
+          // Initialize all 6 material slots to ensure no undefined values
+          const cubeMaterials: Material[] = [
+            materials.black, // Right face (+X) - default to black
+            materials.black, // Left face (-X) - default to black
+            materials.black, // Top face (+Y) - default to black
+            materials.black, // Bottom face (-Y) - default to black
+            materials.black, // Front face (+Z) - default to black
+            materials.black  // Back face (-Z) - default to black
+          ];
+
           // Face order: +X, -X, +Y, -Y, +Z, -Z (right, left, top, bottom, front, back)
-          
+
           // Right face (+X)
           if (x === 1) {
             cubeMaterials[0] = materials.blue; // Right is blue
-          } else {
-            cubeMaterials[0] = materials.black;
           }
-          
-          // Left face (-X)  
+
+          // Left face (-X)
           if (x === -1) {
             cubeMaterials[1] = materials.green; // Left is green
-          } else {
-            cubeMaterials[1] = materials.black;
           }
-          
+
           // Top face (+Y)
           if (y === 1) {
             cubeMaterials[2] = materials.white; // Up is white
-          } else {
-            cubeMaterials[2] = materials.black;
           }
-          
+
           // Bottom face (-Y)
           if (y === -1) {
             cubeMaterials[3] = materials.yellow; // Down is yellow
-          } else {
-            cubeMaterials[3] = materials.black;
           }
-          
+
           // Front face (+Z)
           if (z === 1) {
             cubeMaterials[4] = materials.red; // Front is red
-          } else {
-            cubeMaterials[4] = materials.black;
           }
-          
+
           // Back face (-Z)
           if (z === -1) {
             cubeMaterials[5] = materials.orange; // Back is orange
-          } else {
-            cubeMaterials[5] = materials.black;
           }
           
           // Enable shadow casting and receiving for spot lighting effects
