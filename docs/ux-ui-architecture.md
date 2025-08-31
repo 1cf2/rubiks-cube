@@ -107,19 +107,33 @@ flowchart TD
     H --> I[New Challenge]
 ```
 
-### Gesture Recognition Flow
+### Enhanced Face-to-Face Gesture Flow
 
 ```mermaid
 flowchart TD
-    A[Touch/Click Start] --> B[Hit Detection]
-    B --> C{Face Hit?}
-    C -->|Yes| D[Face Selection]
-    C -->|No| E[Cube Rotation Mode]
-    D --> F[Drag Direction Analysis]
-    F --> G[Rotation Preview]
-    G --> H[Execute Face Rotation]
-    E --> I[Camera Orbit]
-    I --> J[Update View Angle]
+    A[Mouse/Touch Press] --> B[Initial Face Hit]
+    B --> C{Valid Face Selected?}
+    C -->|No| D[Return to Idle]
+    C -->|Yes| E[Set Face A as Reference]
+    E --> F[Begin Drag Gesture]
+    F --> G{Adjacent Face Hit?}
+    G -->|No| H[Show Invalid Cursor]
+    G -->|Yes| I[Set Face B as Target]
+    I --> J{Adjacent & Different?}
+    J -->|No| K[Clear Visual Feedback]
+    J -->|Yes| L[Validate Layer Context]
+    L --> M[Determine Rotation Direction]
+    M --> N[Apply Right-Hand Rule]
+    N --> O[Calculate Rotation Torque]
+    O --> P[Show Multi-Face Preview]
+    P --> Q{Valid Layer & Direction?}
+    Q -->|Yes| R[Execute 9-Piece Rotation]
+    Q -->|No| S[Reset Gesture State]
+    R --> T[Update Face Mappings]
+    T --> U[Return to Idle]
+    H --> F
+    K --> F
+    S --> F
 ```
 
 ## 4. Responsive Layout System
@@ -200,42 +214,68 @@ flowchart TD
 - **Tertiary**: Pinch for zoom
 - **Long Press**: Context menu access
 
-### Gesture Recognition Algorithm
+### Detailed Face-to-Face Drag Interaction Logic
 
-```javascript
-// Pseudo-code for gesture interpretation
-class GestureRecognizer {
-  detectIntent(startPoint, currentPoint, velocity) {
-    const distance = calculateDistance(startPoint, currentPoint);
-    const angle = calculateAngle(startPoint, currentPoint);
-    
-    if (distance < FACE_ROTATION_THRESHOLD) {
-      return interpretFaceRotation(angle, velocity);
-    } else {
-      return interpretCubeRotation(angle, velocity);
-    }
-  }
-  
-  interpretFaceRotation(angle, velocity) {
-    // Snap to 90-degree increments
-    // Provide rotation preview
-    // Validate legal move
-  }
-}
-```
+#### Core Interaction Pattern:
+- **Face Selection:** Initial mouse/touch press selects a cube face as reference point (A)
+- **Adjacent Target:** Drag gesture targets an adjacent face (B) for determining rotation
+- **Adjacency Rule:** Faces A and B must be spatially adjacent (sharing an edge)
+- **Layer Context:** Both faces must reside on the side of the same layer to be rotated
+- **Direction Vector:** Vector from A→B establishes rotational force and torque direction
 
-### Visual Feedback System
+#### Acceptance Criteria
 
-**Hover/Touch States**
-- Face highlighting with 20% opacity overlay
-- Rotation direction arrows on drag start
-- Snap indicators at 90-degree positions
+1. **Face A Selection**
+   - Given I press the mouse/touch on a cube face
+   - When the drag begins
+   - Then that face becomes the reference face (A) for determining rotation direction
 
-**Animation Timing**
-- Face rotation: 200ms ease-out
-- Cube orientation: 300ms ease-in-out
-- UI transitions: 150ms ease-out
-- Loading states: Pulsing animation at 1.5s intervals
+2. **Face B Targeting**
+   - Given I've selected face A and am dragging
+   - When the cursor moves over an adjacent face
+   - Then that face becomes the target face (B) for determining rotation direction
+   - And face B must be different from face A
+   - And face B must be spatially adjacent to face A
+
+3. **Layer Determination**
+   - Given faces A and B are on the same layer side
+   - When the drag vector from A to B is established
+   - Then the layer containing both faces determines which layer rotates
+
+4. **Direction Calculation**
+   - Given drag vector from face A to face B
+   - When calculating rotation
+   - Then direction (clockwise/counter-clockwise) follows mathematical right-hand rule
+   - And A→B vector projects orthogonally to determine rotation plane
+   - And perpendicular direction establishes final rotation direction
+
+5. **Rotation Gesture Validation**
+   - Given adjacent faces A and B exist
+   - When validating layer rotation
+   - Then both faces must share same layer depth in rotation plane
+   - And rotation axis must be perpendicular to both faces
+
+### Enhanced Visual Feedback System
+
+**Face-to-Face Interaction States**
+- **Adjacent Face Highlighting:** Clear visual feedback when hovering over valid adjacent face (B) during drag
+- **Invalid Gesture Indicators:** Subtle "invalid" cursor state when dragging over non-adjacent faces
+- **Direction Preview:** Ghost visualization shows rotation direction and affected layer
+- **Rotation Scope Feedback:** Highlights all 9 pieces that will rotate together
+
+**Performance-Tuned Hover States**
+- **Hover Response Time:** ≤16ms latency for face highlighting
+- **Adjacent Face Detection:** Immediate feedback on valid adjacent surfaces
+- **Gesture Initiation Threshold:** 50% face width distance triggers calculation
+- **Multi-Face Layer Highlighting:** Distinguishable colors for primary (A) and secondary (B) faces
+
+**Precise Animation & Performance Timing**
+- **Face Rotation:** 200ms ease-out with 60fps minimum frame rate
+- **Cube Orientation:** 300ms ease-in-out for smooth camera movements
+- **Adjacent Face Feedback:** ≤16ms hover response for immediate interaction feel
+- **Gesture Preview:** Real-time vector calculation with continuous visual updates
+- **Error Recovery:** Graceful state restoration on invalid gestures
+- **Layer Highlighting:** 150ms transitions for multi-piece rotation scope feedback
 
 ## 6. Progressive Tutorial System Design
 
