@@ -339,8 +339,7 @@ export function useCubeInteraction(
       const directionResult = RaycastingUtils.calculateRotationDirection(
         gesture.startPosition,
         gesture.currentPosition,
-        effectiveFace,
-        camera
+        effectiveFace
       );
 
       if (!directionResult.success) {
@@ -500,8 +499,7 @@ export function useCubeInteraction(
         const directionResult = RaycastingUtils.calculateRotationDirection(
           gesture.startPosition,
           gesture.currentPosition,
-          face,
-          camera || new THREE.PerspectiveCamera()
+          face
         );
         
         if (directionResult.success && directionResult.data) {

@@ -39,7 +39,7 @@ export class RotationPreview {
     // this.cubeGroup = options.cubeGroup;
     this.arrowSize = options.arrowSize ?? 0.3;
     this.arrowColor = options.arrowColor ?? new THREE.Color(0xffffff);
-    this.defaultOpacity = options.opacity ?? 0.6;
+    this.defaultOpacity = options.opacity ?? 0.9;
     this.animationDuration = options.animationDuration ?? 200;
     
     this.initializeArrowMeshes();
@@ -51,7 +51,7 @@ export class RotationPreview {
   private initializeArrowMeshes(): void {
     const faces = Object.values(FacePosition);
     const directions = [RotationDirection.CLOCKWISE, RotationDirection.COUNTERCLOCKWISE];
-    
+
     faces.forEach(face => {
       directions.forEach(direction => {
         const key = `${face}-${direction}`;
@@ -60,7 +60,9 @@ export class RotationPreview {
         this.arrowMeshes.set(key, arrowMesh);
       });
     });
+
   }
+
 
   /**
    * Create an arrow mesh for a specific face and direction
@@ -121,6 +123,7 @@ export class RotationPreview {
     return arrowMesh;
   }
 
+
   /**
    * Position and orient arrow for specific face and direction
    */
@@ -180,6 +183,7 @@ export class RotationPreview {
         break;
     }
   }
+
 
   /**
    * Show rotation preview for a face and direction
@@ -383,8 +387,8 @@ export class RotationPreview {
     // Stop all animations
     this.activeAnimations.forEach(cleanup => cleanup());
     this.activeAnimations.clear();
-    
-    // Dispose of meshes and materials
+
+    // Dispose of arrow meshes and materials
     this.arrowMeshes.forEach(mesh => {
       if (mesh.geometry) mesh.geometry.dispose();
       if (mesh.material) {
@@ -396,8 +400,9 @@ export class RotationPreview {
       }
       this.scene.remove(mesh);
     });
-    
+
     this.arrowMeshes.clear();
     this.arrowMaterials.clear();
+
   }
 }

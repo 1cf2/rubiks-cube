@@ -6,7 +6,7 @@ import {
   DragGesture,
   CubeError 
 } from '@rubiks-cube/shared/types';
-import { RotationPreview, ArrowPreview } from '@rubiks-cube/three-renderer';
+import { RotationPreview } from '@rubiks-cube/three-renderer';
 
 export interface RotationPreviewManagerProps {
   scene: THREE.Scene | null;
@@ -72,26 +72,26 @@ export const RotationPreviewManager: React.FC<RotationPreviewManagerProps> = ({
 
   // Show preview for a specific face and direction
   const showPreview = useCallback((
-    face: FacePosition, 
+    face: FacePosition,
     direction: RotationDirection,
     options: { pulse?: boolean; opacity?: number } = {}
   ) => {
     if (!rotationPreviewRef.current || !isEnabled) return;
-    
+
     const key = `${face}-${direction}`;
-    
+
     // Don't show if already showing
     if (currentPreviewsRef.current.has(key)) return;
-    
-    const preview: ArrowPreview = {
+
+    const preview = {
       face,
       direction,
       opacity: options.opacity ?? previewIntensity,
       pulse: options.pulse ?? false,
     };
-    
+
     const result = rotationPreviewRef.current.showPreview(preview);
-    
+
     if (result.success) {
       currentPreviewsRef.current.add(key);
     } else {

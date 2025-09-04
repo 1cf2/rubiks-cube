@@ -301,61 +301,47 @@ export class RaycastingUtils {
   }
 
   /**
-   * Calculates rotation direction based on mouse movement relative to face normal
+   * Calculates rotation direction based on mouse movement for intuitive control
+   * Mouse drag direction should match rotation direction from user's perspective
    */
   static calculateRotationDirection(
     startPos: MousePosition,
     endPos: MousePosition,
-    face: FacePosition,
-    camera: THREE.Camera
+    face: FacePosition
   ): CubeOperationResult<'clockwise' | 'counterclockwise'> {
     try {
       const deltaX = endPos.x - startPos.x;
       const deltaY = endPos.y - startPos.y;
 
-      // Get camera's forward direction
-      const cameraDirection = new THREE.Vector3();
-      camera.getWorldDirection(cameraDirection);
+      // For intuitive mouse control, we want:
+      // - Dragging RIGHT = CLOCKWISE rotation
+      // - Dragging LEFT = COUNTERCLOCKWISE rotation
+      // - Dragging DOWN = CLOCKWISE rotation (for side faces)
+      // - Dragging UP = COUNTERCLOCKWISE rotation (for side faces)
 
-      // Determine rotation direction based on face orientation and camera view
-      switch (face) {
-        case FacePosition.FRONT:
-          return { 
-            success: true, 
-            data: deltaX > 0 ? 'clockwise' : 'counterclockwise' 
-          };
-        case FacePosition.BACK:
-          return { 
-            success: true, 
-            data: deltaX > 0 ? 'counterclockwise' : 'clockwise' 
-          };
-        case FacePosition.LEFT:
-          return { 
-            success: true, 
-            data: deltaY > 0 ? 'counterclockwise' : 'clockwise' 
-          };
-        case FacePosition.RIGHT:
-          return { 
-            success: true, 
-            data: deltaY > 0 ? 'clockwise' : 'counterclockwise' 
-          };
-        case FacePosition.UP:
-          return { 
-            success: true, 
-            data: deltaX > 0 ? 'clockwise' : 'counterclockwise' 
-          };
-        case FacePosition.DOWN:
-          return { 
-            success: true, 
-            data: deltaX > 0 ? 'counterclockwise' : 'clockwise' 
-          };
-        default:
-          return {
-            success: false,
-            error: CubeError.GESTURE_RECOGNITION_FAILED,
-            message: 'Invalid face position',
-          };
+      // Determine direction based on dominant movement
+      let isClockwise: boolean;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        // Horizontal movement dominates
+        isClockwise = deltaX > 0;
+      } else {
+        // Vertical movement dominates - invert for side faces
+        switch (face) {
+          case FacePosition.LEFT:
+          case FacePosition.RIGHT:
+            isClockwise = deltaY < 0; // Up = counterclockwise, Down = clockwise
+            break;
+          default:
+            isClockwise = deltaY > 0; // Down = clockwise, Up = counterclockwise
+            break;
+        }
       }
+
+      return {
+        success: true,
+        data: isClockwise ? 'clockwise' : 'counterclockwise'
+      };
     } catch (error) {
       return {
         success: false,

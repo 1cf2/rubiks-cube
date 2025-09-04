@@ -17,8 +17,64 @@ A high-performance, browser-based 3D Rubik's Cube game built with modern web tec
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- Modern browser with WebGL support (Chrome 60+, Firefox 60+, Safari 12+, Edge 79+)
+Before starting, ensure your system meets the requirements:
+
+```bash
+# Check Node.js version (requires 18+)
+node --version  # Should show v18.x.x or higher
+
+# Check npm version
+npm --version   # Should show 8.x.x or higher
+
+# Check git installation
+git --version
+
+# Verify WebGL support in browser
+# Open browser console and run:
+# !!window.WebGLRenderingContext
+```
+
+### System-Specific Setup
+
+#### macOS
+```bash
+# Install Xcode Command Line Tools (if not already installed)
+xcode-select --install
+
+# Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Node.js via Homebrew
+brew install node@18
+
+# Verify installation
+which node
+node --version
+```
+
+#### Windows
+```bash
+# Using Windows Subsystem for Linux (WSL2) - Recommended
+wsl --install
+
+# Or using Chocolatey
+choco install nodejs --version=18.17.0
+
+# Or download from nodejs.org
+```
+
+#### Ubuntu/Debian
+```bash
+# Update package list
+sudo apt update
+
+# Install Node.js 18
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install build tools
+sudo apt-get install -y build-essential
+```
 
 ### Installation
 
@@ -27,11 +83,48 @@ A high-performance, browser-based 3D Rubik's Cube game built with modern web tec
 git clone <repository-url>
 cd rubiks-cube
 
-# Install dependencies
+# Install root dependencies and bootstrap packages
 npm install
 
-# Start development server
+# Verify Lerna installation
+npx lerna --version
+
+# Bootstrap all packages (links local dependencies)
+npm run bootstrap
+
+# Verify package linking
+ls -la node_modules/@rubiks-cube/
+# Should show: cube-engine, three-renderer, shared, web-app, api-server
+```
+
+### Build Verification
+
+```bash
+# Build TypeScript types first (required for other builds)
+npm run build:types
+
+# Verify type compilation
+ls -la packages/*/dist/
+# Each package should have dist/ directory with .d.ts files
+
+# Build all packages
+npm run build
+
+# Check build output
+ls -la packages/web-app/dist/
+# Should contain: index.html, bundle files, assets/
+```
+
+### Development Server
+
+```bash
+# Start web app development server
 npm run dev
+
+# Server should start on port 8082
+# Output should show:
+# "webpack-dev-server started on http://localhost:8082"
+# "Compiled successfully"
 ```
 
 Open http://localhost:8082 in your browser to start playing!

@@ -7,6 +7,7 @@ import {
   CubeError,
   Move,
   CursorState,
+  RotationDirection,
 } from '@rubiks-cube/shared/types';
 // Using string literal for direction to avoid import issues
 import { useMouseGestures } from '../../hooks/useMouseGestures';
@@ -73,6 +74,19 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
   const [startPiecePosition, setStartPiecePosition] = useState<readonly [number, number, number] | null>(null);
   // eslint-disable-next-line no-unused-vars
   const checkMoveValidityRef = useRef<((face: FacePosition) => boolean) | null>(null);
+
+  // State for rotation direction preview overlay
+  const [rotationPreview, setRotationPreview] = useState<{
+    isActive: boolean;
+    face: FacePosition | null;
+    direction: RotationDirection | null;
+    layerCount: number;
+  }>({
+    isActive: false,
+    face: null,
+    direction: null,
+    layerCount: 1,
+  });
   
   // Get canvas element for camera controls
   const canvasElement = React.useMemo(() => {
@@ -222,24 +236,38 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         hasStartPosition: !!startPiecePosition,
         startPiecePosition
       });
-      
+
+      // Update rotation preview overlay
+      setRotationPreview({
+        isActive: true,
+        face: command.face,
+        direction: command.direction,
+        layerCount: 1, // Default to 1 layer, could be enhanced to detect multiple layers
+      });
+
       // If we have drag information, detect layer from gesture
       if (dragInfo && dragInfo.currentMesh && startPiecePosition) {
         const currentPos = [dragInfo.currentMesh.position.x, dragInfo.currentMesh.position.y, dragInfo.currentMesh.position.z] as const;
-        
+
         window.console.log('🎯 🔶 Attempting gesture layer detection:', {
           startPos: startPiecePosition,
           currentPos,
           currentMeshName: dragInfo.currentMesh.name,
           currentMeshUuid: dragInfo.currentMesh.uuid
         });
-        
+
         // Detect layer from gesture between start and current position
         const gestureLayerInfo = GestureLayerDetection.detectLayerFromGesture(startPiecePosition, currentPos);
-        
+
         if (gestureLayerInfo) {
           window.console.log('🎯 ✅ Gesture layer detected:', gestureLayerInfo);
           updateGestureLayerHighlight(gestureLayerInfo);
+
+          // Update layer count in rotation preview
+          setRotationPreview(prev => ({
+            ...prev,
+            layerCount: gestureLayerInfo.pieces.length,
+          }));
         } else {
           window.console.log('🎯 ❌ No gesture layer detected');
         }
@@ -255,22 +283,30 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
     onRotationComplete: (command, move) => {
       // Clear visual feedback for the rotated face
       updateVisualFeedback(command.face, 'normal');
-      
+
       // Clear ALL visual feedback to prevent stale highlights after cube state changes
       setVisualFeedback(new Map());
-      
+
       // Clear layer highlights
       clearLayerHighlights();
-      
+
       // Clear gesture positions
       setStartPiecePosition(null);
-      
+
+      // Clear rotation preview overlay
+      setRotationPreview({
+        isActive: false,
+        face: null,
+        direction: null,
+        layerCount: 1,
+      });
+
       // Show completion feedback
       if (enableCompletionFeedback) {
         showSuccessFlash(command.face);
       }
-      
-      
+
+
       onRotationComplete?.(command, move);
     },
     onError: (error, message) => {
@@ -652,6 +688,104 @@ export const MouseControls: React.FC<MouseControlsProps> = ({
         selectedFace={interactionState.selectedFace}
         isEnabled={enableDebugOverlay || isOverlayEnabled()}
       />
+
+      {/* Rotation Direction Preview Overlay */}
+      {rotationPreview.isActive && rotationPreview.face && rotationPreview.direction && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(0,0,0,0.7))',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '12px',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            border: '2px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(10px)',
+            animation: 'slideUp 0.2s ease-out',
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+            {/* Animated rotation indicator */}
+            <div
+              style={{
+                fontSize: '24px',
+                animation: 'spin 0.5s ease-in-out',
+                color: rotationPreview.direction === RotationDirection.CLOCKWISE ? '#4CAF50' : '#FF9800'
+              }}
+            >
+              {rotationPreview.direction === RotationDirection.CLOCKWISE ? '↻' : '↺'}
+            </div>
+
+            {/* Main preview text */}
+            <div style={{ lineHeight: '1.4' }}>
+              <div style={{ fontSize: '18px', marginBottom: '4px' }}>
+                🎯 Ready to Rotate!
+              </div>
+              <div style={{ fontSize: '14px', color: '#ccc', fontWeight: 'normal' }}>
+                <span style={{ marginRight: '8px' }}>
+                  Layer: {rotationPreview.face.toUpperCase()}
+                </span>
+                <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                  {rotationPreview.direction === RotationDirection.CLOCKWISE ? 'CLOCKWISE' : 'COUNTER-CLOCKWISE'}
+                </span>
+              </div>
+              {rotationPreview.layerCount > 1 && (
+                <div style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold', marginTop: '4px' }}>
+                  {rotationPreview.layerCount} pieces will rotate together
+                </div>
+              )}
+            </div>
+
+            {/* Release indicator */}
+            <div style={{
+              fontSize: '12px',
+              color: '#888',
+              marginTop: '8px',
+              animation: 'pulse 1s ease-in-out infinite'
+            }}>
+              ▲ Release mouse to rotate ▲
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes slideUp {
+            from {
+              transform: translateX(-50%) translateY(20px);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(-50%) translateY(0);
+              opacity: 1;
+            }
+          }
+
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); color: #88cc00; }
+            100% { transform: rotate(360deg); }
+          }
+
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 0.6;
+            }
+            50% {
+              opacity: 1;
+            }
+          }
+        `
+      }} />
       
       {/* Rotation preview system */}
       <RotationPreviewManager
