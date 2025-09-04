@@ -121,13 +121,13 @@ ls -la packages/web-app/dist/
 # Start web app development server
 npm run dev
 
-# Server should start on port 8082
+# Server should start on port 3000
 # Output should show:
-# "webpack-dev-server started on http://localhost:8082"
+# "webpack-dev-server started on http://localhost:3000"
 # "Compiled successfully"
 ```
 
-Open http://localhost:8082 in your browser to start playing!
+Open http://localhost:3000 in your browser to start playing!
 
 ### Production Build
 
@@ -313,7 +313,7 @@ cd packages/cube-engine && npm run build # Build engine only
 
 **Build Issues**
 - Run `npm run clean` and rebuild
-- Ensure Node.js 16+ is installed
+- Ensure Node.js 18+ is installed
 - Delete `node_modules` and run `npm install`
 
 ### Getting Help

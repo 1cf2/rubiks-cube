@@ -23,20 +23,24 @@ A realistic 3D Rubik's Cube rendered in the browser using Three.js, React, and T
    npm install
    ```
 
-3. **Build all packages**
+3. **Bootstrap packages**
    ```bash
-   npx lerna run build
+   npm run bootstrap
    ```
 
-4. **Start the development server**
+4. **Build all packages**
    ```bash
-   cd packages/web-app
-   npm start
+   npm run build
    ```
 
-5. **Open your browser**
+5. **Start the development server**
+   ```bash
+   npm run dev
    ```
-   http://localhost:8080
+
+6. **Open your browser**
+   ```
+   http://localhost:3000
    ```
 
 ## 🎮 What You'll See
@@ -101,32 +105,36 @@ rubiks-cube/
 - **Responsive Design** - Mobile-optimized scaling
 - **Performance Monitoring** - Real-time FPS tracking
 
-### 🚧 Coming Soon
-- Full cube manipulation (drag to rotate faces)
-- Scrambling and solving algorithms
-- Move history and undo/redo
-- Timer and scoring system
+### 🚧 Future Enhancements
+- Advanced solving algorithms and scramble generation
+- Move history with undo/redo functionality
+- Timer and scoring system for speedcubing
 - Tutorial mode with guided interactions
+- Multiplayer functionality
+- Cube state persistence and sharing
 
 ## 🛠️ Development
 
 ### Available Scripts
 
 ```bash
-# Development server
-npm start                    # Start web app dev server
+# Development
+npm run dev                # Start web app development server
+npm run dev:api           # Start API server (future)
 
 # Building
-npm run build               # Build web app for production
-npx lerna run build        # Build all packages
+npm run build             # Build all packages
+npm run build:types      # Build TypeScript types only
+npm run build:web        # Build web app only
 
-# Testing
-npm test                   # Run tests
-npm run test:coverage     # Run tests with coverage
+# Testing & Quality
+npm test                  # Run all package tests
+npm run lint              # Lint all packages
+npm run lint:fix         # Auto-fix linting issues
+npm run format           # Format code with Prettier
 
-# Linting
-npm run lint              # Check code style
-npm run lint:fix          # Auto-fix linting issues
+# Maintenance
+npm run clean             # Clean all build artifacts
 ```
 
 ### Development Features
@@ -140,10 +148,10 @@ npm run lint:fix          # Auto-fix linting issues
 ## 🎯 Performance
 
 ### Benchmarks
-- **Bundle Size**: ~598KB total (Three.js: 451KB, React: 132KB, App: 13KB)
-- **Loading Time**: <2 seconds on modern browsers
-- **Frame Rate**: 60fps on desktop, 30fps on mobile
-- **Memory Usage**: <100MB desktop, <75MB mobile
+- **Desktop**: 60fps at 1080p resolution
+- **Mobile**: 30fps minimum on modern devices
+- **Load Time**: <2 seconds initial load
+- **Memory**: <100MB memory usage
 
 ### Optimization Features
 - **Code Splitting** - Separate bundles for Three.js, React, and app code
@@ -172,11 +180,14 @@ npm run lint:fix          # Auto-fix linting issues
 
 ### Browser Compatibility
 
-- ✅ **Chrome** 80+ (Recommended)
-- ✅ **Firefox** 75+
-- ✅ **Safari** 13+
-- ✅ **Edge** 80+
-- ❌ Internet Explorer (not supported)
+| Browser | Version | Status |
+|---------|---------|--------|
+| Chrome | 60+ | ✅ Fully Supported |
+| Firefox | 60+ | ✅ Fully Supported |
+| Safari | 12+ | ✅ Fully Supported |
+| Edge | 79+ | ✅ Fully Supported |
+| Mobile Safari | iOS 12+ | ✅ Touch Optimized |
+| Chrome Mobile | Android 8+ | ✅ Touch Optimized |
 
 ## 📱 Mobile Experience
 
@@ -190,11 +201,11 @@ The application automatically adapts for mobile devices:
 ## 🏗️ Architecture
 
 ### Technology Stack
-- **Frontend**: React 18 + TypeScript
-- **3D Rendering**: Three.js + WebGL
-- **Build Tool**: Webpack 5
-- **Package Manager**: Lerna (monorepo)
-- **Testing**: Jest + React Testing Library
+- **Frontend**: React 18, TypeScript 5.9, Three.js 0.160, Webpack 5
+- **3D Graphics**: Three.js with WebGL rendering
+- **Build System**: Lerna monorepo with TypeScript project references
+- **Development**: Hot reload, ESLint, Prettier, Jest testing
+- **Performance**: Code splitting, lazy loading, optimized bundling
 
 ### Key Components
 - **ThreeScene**: Main 3D scene management
