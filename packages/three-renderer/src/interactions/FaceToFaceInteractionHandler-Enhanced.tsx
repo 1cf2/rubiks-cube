@@ -3,9 +3,6 @@
 
 import * as THREE from 'three';
 import { FacePosition, RotationDirection } from '@rubiks-cube/shared/types';
-import { FaceAdjacencyDetector } from './FaceAdjacencyDetector';
-import { FaceReferenceTracker } from './FaceReferenceTracker';
-import { RotationVectorCalculator } from './RotationVectorCalculator';
 
 export interface RotationPreviewInfo {
   readonly isActive: boolean;
@@ -27,13 +24,26 @@ export interface EnhancedFaceToFaceResult {
 export class EnhancedFaceToFaceMouseInteractionHandler {
   // ... existing properties
 
+  // Scene references
+  private scene: THREE.Scene;
+
   // Enhanced properties for rotation preview
   private rotationPreview: RotationPreviewInfo | null = null;
   private previewArrowMaterial: THREE.MeshBasicMaterial;
   private previewArrowGeometries: THREE.ConeGeometry[];
-  private previewGhostMeshes: THREE.Mesh[];
 
-  constructor(scene: THREE.Scene, camera: THREE.Camera, renderer: THREE.WebGLRenderer, cubeGroup: THREE.Group) {
+  constructor(scene: THREE.Scene) {
+    // Assign scene references
+    this.scene = scene;
+
+    // Initialize enhanced properties
+    this.previewArrowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ff00,
+      transparent: true,
+      opacity: 0.7
+    });
+    this.previewArrowGeometries = [];
+
     // ... existing constructor
 
     // Initialize rotation preview system
@@ -56,8 +66,6 @@ export class EnhancedFaceToFaceMouseInteractionHandler {
       const arrowGeometry = new THREE.ConeGeometry(size * 0.3, size, 8);
       this.previewArrowGeometries.push(arrowGeometry);
     }
-
-    this.previewGhostMeshes = [];
   }
 
   /**
@@ -102,7 +110,7 @@ export class EnhancedFaceToFaceMouseInteractionHandler {
 
       // Calculate arrow position (above the face center)
       const facePos = this.calculateFaceCenterPosition(face);
-      const arrowOffset = this.calculateArrowOffset(face, preview.previewDirection);
+      const arrowOffset = this.calculateArrowOffset(face);
 
       const arrowPos = facePos.clone().add(arrowOffset);
       arrowGroup.position.copy(arrowPos);
@@ -129,46 +137,11 @@ export class EnhancedFaceToFaceMouseInteractionHandler {
     return arrowGroups;
   }
 
-  /**
-   * Create ghost visualization showing predicted rotation
-   */
-  private createGhostRotationPreview(face: FacePosition, direction: RotationDirection): THREE.Group {
-    const ghostGroup = new THREE.Group();
-
-    // Create semi-transparent copy of the rotating layer
-    if (this.cubeGroup) {
-      const pieces = this.getLayerPieces(face);
-      pieces.forEach(piece => {
-        const ghostMesh = piece.clone();
-
-        // Make ghostly appearance
-        if (ghostMesh.material) {
-          const ghostMaterial = new THREE.MeshPhongMaterial({
-            color: ghostMesh.material.color,
-            transparent: true,
-            opacity: 0.4,
-            wireframe: true
-          });
-          ghostMesh.material = ghostMaterial;
-        }
-
-        // Apply preview rotation
-        const previewAngle = direction === RotationDirection.CLOCKWISE ? Math.PI / 4 : -Math.PI / 4;
-        const rotationAxis = this.getRotationAxisForFace(face);
-        ghostMesh.rotateOnWorldAxis(rotationAxis, previewAngle);
-
-        ghostGroup.add(ghostMesh);
-        this.previewGhostMeshes.push(ghostMesh);
-      });
-    }
-
-    return ghostGroup;
-  }
 
   /**
    * Calculate arrow position offset from face center
    */
-  private calculateArrowOffset(face: FacePosition, direction: RotationDirection): THREE.Vector3 {
+  private calculateArrowOffset(face: FacePosition): THREE.Vector3 {
     const facePos = this.calculateFaceCenterPosition(face);
     const offsetDistance = 1.2; // Distance from face center
 
@@ -243,67 +216,8 @@ export class EnhancedFaceToFaceMouseInteractionHandler {
     }
   }
 
-  /**
-   * Get rotation axis for face
-   */
-  private getRotationAxisForFace(face: FacePosition): THREE.Vector3 {
-    switch (face) {
-      case FacePosition.FRONT:
-      case FacePosition.BACK:
-        return new THREE.Vector3(0, 0, 1);
-      case FacePosition.LEFT:
-      case FacePosition.RIGHT:
-        return new THREE.Vector3(1, 0, 0);
-      case FacePosition.TOP:
-      case FacePosition.DOWN:
-        return new THREE.Vector3(0, 1, 0);
-      default:
-        return new THREE.Vector3(0, 1, 0);
-    }
-  }
 
-  /**
-   * Get pieces belonging to a layer
-   */
-  private getLayerPieces(face: FacePosition): THREE.Mesh[] {
-    const layerPieces: THREE.Mesh[] = [];
 
-    if (!this.cubeGroup) return layerPieces;
-
-    // Find pieces belonging to this face/layer
-    this.cubeGroup.traverse((object) => {
-      if (object instanceof THREE.Mesh && this.isPieceInLayer(object, face)) {
-        layerPieces.push(object);
-      }
-    });
-
-    return layerPieces;
-  }
-
-  /**
-   * Check if a piece belongs to the specified layer
-   */
-  private isPieceInLayer(piece: THREE.Mesh, face: FacePosition): boolean {
-    const position = piece.position;
-
-    // Check if piece is on the specified face
-    switch (face) {
-      case FacePosition.FRONT:
-        return position.z > 0.5;
-      case FacePosition.BACK:
-        return position.z < -0.5;
-      case FacePosition.LEFT:
-        return position.x < -0.5;
-      case FacePosition.RIGHT:
-        return position.x > 0.5;
-      case FacePosition.TOP:
-        return position.y > 0.5;
-      case FacePosition.DOWN:
-        return position.y < -0.5;
-      default:
-        return false;
-    }
-  }
 
   /**
    * Clear all rotation preview visual elements
@@ -330,7 +244,6 @@ export class EnhancedFaceToFaceMouseInteractionHandler {
       });
     }
 
-    this.previewGhostMeshes = [];
     this.rotationPreview = null;
   }
 
@@ -345,14 +258,26 @@ export class EnhancedFaceToFaceMouseInteractionHandler {
     this.previewArrowGeometries.forEach(geometry => geometry.dispose());
   }
 
+  /**
+   * Handle standard drag update (placeholder - should be implemented based on base class)
+   */
+  private handleDragUpdate(): any {
+    // Placeholder implementation - should delegate to base class or implement drag logic
+    return {
+      canRotate: false,
+      rotationCommand: null,
+      adjacencyState: null,
+      validFaces: []
+    };
+  }
+
   // Integration method for enhanced face-drag interaction
   updateDragWithPreview(
-    currentPosition: readonly [number, number, number],
-    onPreviewUpdate?: (preview: RotationPreviewInfo) => void
+    onPreviewUpdate?: () => void
   ): EnhancedFaceToFaceResult {
 
     // Get standard drag result
-    const standardResult = this.handleDragUpdate(currentPosition);
+    const standardResult = this.handleDragUpdate();
 
     // Create/enhance rotation preview
     if (standardResult.canRotate && standardResult.rotationCommand) {
@@ -371,7 +296,7 @@ export class EnhancedFaceToFaceMouseInteractionHandler {
       this.updateRotationPreview();
 
       // Notify subscribers
-      onPreviewUpdate?.(this.rotationPreview);
+      onPreviewUpdate?.();
     } else {
       // Clear preview when no valid rotation
       this.clearRotationPreview();

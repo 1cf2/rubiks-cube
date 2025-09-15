@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {
-  FacePosition,
   FaceReferenceTrackerState,
   FaceReferenceTrackerOptions,
   FaceSelectionEvent,
@@ -281,12 +280,4 @@ export class FaceReferenceTracker {
     this.lastUpdateTime = performance.now();
   }
 
-  /**
-   * Calculate drag distance between points
-   */
-  private calculateDragDistance(point1: readonly [number, number, number], point2: readonly [number, number, number]): number {
-    const v1 = new THREE.Vector3(...point1);
-    const v2 = new THREE.Vector3(...point2);
-    return v1.distanceTo(v2);
-  }
 }

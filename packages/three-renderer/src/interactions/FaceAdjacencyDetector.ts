@@ -101,7 +101,7 @@ export class FaceAdjacencyDetector {
     // Create the four corners of the face
     switch (face) {
       case FacePosition.FRONT:
-        points.push( // Top-left
+        points.push( // Top-left, bottom-left, bottom-right, top-right
           center.clone().add(new THREE.Vector3(-halfSize, halfSize, 0)),
           center.clone().add(new THREE.Vector3(-halfSize, -halfSize, 0)),
           center.clone().add(new THREE.Vector3(halfSize, -halfSize, 0)),
@@ -109,28 +109,63 @@ export class FaceAdjacencyDetector {
         );
         break;
       case FacePosition.BACK:
-        points.push(
+        points.push( // Top-right, bottom-right, bottom-left, top-left
           center.clone().add(new THREE.Vector3(halfSize, halfSize, 0)),
           center.clone().add(new THREE.Vector3(halfSize, -halfSize, 0)),
           center.clone().add(new THREE.Vector3(-halfSize, -halfSize, 0)),
           center.clone().add(new THREE.Vector3(-halfSize, halfSize, 0))
         );
         break;
-      // Similar logic for other faces...
+      case FacePosition.LEFT:
+        points.push( // Top-back, bottom-back, bottom-front, top-front
+          center.clone().add(new THREE.Vector3(0, halfSize, -halfSize)),
+          center.clone().add(new THREE.Vector3(0, -halfSize, -halfSize)),
+          center.clone().add(new THREE.Vector3(0, -halfSize, halfSize)),
+          center.clone().add(new THREE.Vector3(0, halfSize, halfSize))
+        );
+        break;
+      case FacePosition.RIGHT:
+        points.push( // Top-front, bottom-front, bottom-back, top-back
+          center.clone().add(new THREE.Vector3(0, halfSize, halfSize)),
+          center.clone().add(new THREE.Vector3(0, -halfSize, halfSize)),
+          center.clone().add(new THREE.Vector3(0, -halfSize, -halfSize)),
+          center.clone().add(new THREE.Vector3(0, halfSize, -halfSize))
+        );
+        break;
+      case FacePosition.UP:
+        points.push( // Back-left, front-left, front-right, back-right
+          center.clone().add(new THREE.Vector3(-halfSize, 0, -halfSize)),
+          center.clone().add(new THREE.Vector3(-halfSize, 0, halfSize)),
+          center.clone().add(new THREE.Vector3(halfSize, 0, halfSize)),
+          center.clone().add(new THREE.Vector3(halfSize, 0, -halfSize))
+        );
+        break;
+      case FacePosition.DOWN:
+        points.push( // Front-left, back-left, back-right, front-right
+          center.clone().add(new THREE.Vector3(-halfSize, 0, halfSize)),
+          center.clone().add(new THREE.Vector3(-halfSize, 0, -halfSize)),
+          center.clone().add(new THREE.Vector3(halfSize, 0, -halfSize)),
+          center.clone().add(new THREE.Vector3(halfSize, 0, halfSize))
+        );
+        break;
     }
 
     const edges: FaceEdge[] = [];
-    // Connect adjacent points to form edges
-    for (let i = 0; i < points.length; i++) {
-      const start = points[i];
-      const end = points[(i + 1) % points.length];
 
-      edges.push({
-        face,
-        vertices: [start, end],
-        direction: end.clone().sub(start).normalize().toArray(),
-        center: start.clone().add(end).multiplyScalar(0.5).toArray()
-      });
+    // Only create edges if we have points
+    if (points.length === 4) {
+      // Connect adjacent points to form edges
+      for (let i = 0; i < points.length; i++) {
+        const start = points[i]!;
+        const end = points[(i + 1) % points.length]!;
+
+        edges.push({
+          face,
+          vertices: [start, end],
+          direction: end.clone().sub(start).normalize().toArray(),
+          center: start.clone().add(end).multiplyScalar(0.5).toArray()
+        });
+      }
     }
 
     return edges;
@@ -140,8 +175,6 @@ export class FaceAdjacencyDetector {
    * Detect adjacency relationship between two faces
    */
   detectAdjacency(referenceFace: FacePosition, targetFace: FacePosition): FaceAdjacencyRelationship {
-    const startTime = performance.now();
-
     // Prevent self-comparison
     if (referenceFace === targetFace) {
       return {
@@ -160,7 +193,7 @@ export class FaceAdjacencyDetector {
 
     let adjacencyState: AdjacencyState;
     let sharedEdge: FaceEdge | undefined;
-    let layerCompatibility = this.checkLayerCompatibility(referenceFace, targetFace);
+    const layerCompatibility = this.checkLayerCompatibility(referenceFace, targetFace);
     let validForRotation = false;
 
     // Determine adjacency type based on distance
@@ -174,17 +207,20 @@ export class FaceAdjacencyDetector {
       adjacencyState = AdjacencyState.NON_ADJACENT;
     }
 
-    const processingTime = performance.now() - startTime;
-
-    return {
+    const result: any = {
       referenceFace,
       targetFace,
       adjacencyState,
-      sharedEdge,
       distance,
       layerCompatibility,
       validForRotation
     };
+
+    if (sharedEdge) {
+      result.sharedEdge = sharedEdge;
+    }
+
+    return result as FaceAdjacencyRelationship;
   }
 
   /**
@@ -194,9 +230,6 @@ export class FaceAdjacencyDetector {
     if (!this.options.strictLayerValidation) {
       return true;
     }
-
-    const referenceNormal = this.getFaceNormal(referenceFace);
-    const targetNormal = this.getFaceNormal(targetFace);
 
     // Faces should have the same axial alignment for rotation compatibility
     // Primary axis alignment check

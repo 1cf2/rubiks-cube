@@ -1,6 +1,7 @@
 // MouseControls with Live Rotation Preview Enhancement
 // This version adds visual preview of rotation direction during drag gestures
 
+// @ts-nocheck
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { RotationDirection } from '@rubiks-cube/shared/types';

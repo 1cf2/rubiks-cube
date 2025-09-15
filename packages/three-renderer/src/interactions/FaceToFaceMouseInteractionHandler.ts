@@ -1,14 +1,9 @@
-import * as THREE from 'three';
 import {
-  MousePosition,
   FacePosition,
   VisualFeedback,
   CubeOperationResult,
   CubeError,
-  PerformanceMetrics,
   RotationCommand,
-  RotationDirection,
-  FaceAdjacencyRelationship,
   AdjacencyState,
 } from '@rubiks-cube/shared/types';
 
@@ -22,26 +17,16 @@ import { RotationVectorCalculator } from './RotationVectorCalculator';
  * Builds upon the existing MouseInteractionHandler functionality
  */
 export class FaceToFaceMouseInteractionHandler {
-  private adjacencyDetector: FaceAdjacencyDetector;
-  private referenceTracker: FaceReferenceTracker;
-  private rotationVectorCalculator: RotationVectorCalculator;
-
-  private scene: THREE.Scene;
-  private camera: THREE.Camera;
-  private renderer: THREE.WebGLRenderer;
-  private cubeGroup: THREE.Group;
+  private adjacencyDetector!: FaceAdjacencyDetector;
+  private referenceTracker!: FaceReferenceTracker;
+  private rotationVectorCalculator!: RotationVectorCalculator;
 
   // Face-to-face interaction state
   private isFaceToFaceMode = false;
   private lastAdjacencyCheck = 0;
   private adjacencyCheckFrequency = 16; // Check every 16ms (~60fps)
 
-  constructor(scene: THREE.Scene, camera: THREE.Camera, renderer: THREE.WebGLRenderer, cubeGroup: THREE.Group) {
-    this.scene = scene;
-    this.camera = camera;
-    this.renderer = renderer;
-    this.cubeGroup = cubeGroup;
-
+  constructor() {
     // Initialize face-to-face interaction components
     this.initializeFaceToFaceSystem();
   }
@@ -174,7 +159,7 @@ export class FaceToFaceMouseInteractionHandler {
         success: true,
         data: {
           canRotate: validAdjacencies.length > 0,
-          rotationCommand: validAdjacencies.length > 0 ? this.createRotationCommand(trackerState, validAdjacencies[0]) : null,
+          rotationCommand: validAdjacencies.length > 0 && validAdjacencies[0] ? this.createRotationCommand(trackerState, validAdjacencies[0]) : null,
           adjacencyState: validAdjacencies.length > 0 ? AdjacencyState.ADJACENT : AdjacencyState.NON_ADJACENT,
           validFaces: validAdjacencies
         }
@@ -275,7 +260,7 @@ export class FaceToFaceMouseInteractionHandler {
   /**
    * Update visual feedback for face-to-face interaction
    */
-  updateFaceToFaceVisualFeedback(currentPosition: readonly [number, number, number]): VisualFeedback[] {
+  updateFaceToFaceVisualFeedback(): VisualFeedback[] {
     const trackerState = this.referenceTracker.getState();
     const feedback: VisualFeedback[] = [];
 

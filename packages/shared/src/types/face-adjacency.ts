@@ -37,6 +37,7 @@ export interface FaceAdjacencyDetectorOptions {
 // Import THREE here because we need it for FaceEdge
 import * as THREE from 'three';
 import { FacePosition } from './cube';
+import { RotationDirection } from './mouse-interactions';
 
 export interface FaceReferenceState {
   readonly selectedFace: FacePosition;

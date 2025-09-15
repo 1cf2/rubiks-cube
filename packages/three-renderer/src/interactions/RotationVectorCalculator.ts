@@ -55,7 +55,6 @@ export class RotationVectorCalculator {
     relationship: FaceAdjacencyRelationship
   ): FaceToFaceRotationResult {
     const startTime = performance.now();
-    const processingTimeMs = performance.now() - startTime;
 
     // Validate input preconditions
     if (!referenceState.isValid || !relationship.validForRotation) {
@@ -122,8 +121,7 @@ export class RotationVectorCalculator {
     const rotationCommand = this.createRotationCommand(
       referenceState.selectedFace,
       direction,
-      torqueAngle,
-      rotationVector.confidence
+      torqueAngle
     );
 
     return {
@@ -226,12 +224,12 @@ export class RotationVectorCalculator {
   private areFacesAdjacent(face1: FacePosition, face2: FacePosition): boolean {
     // Simple adjacency check for cube faces
     const adjacencyMatrix: Record<FacePosition, FacePosition[]> = {
-      [FacePosition.FRONT]: [FacePosition.TOP, FacePosition.BOTTOM, FacePosition.LEFT, FacePosition.RIGHT],
-      [FacePosition.BACK]: [FacePosition.TOP, FacePosition.BOTTOM, FacePosition.LEFT, FacePosition.RIGHT],
-      [FacePosition.LEFT]: [FacePosition.TOP, FacePosition.BOTTOM, FacePosition.FRONT, FacePosition.BACK],
-      [FacePosition.RIGHT]: [FacePosition.TOP, FacePosition.BOTTOM, FacePosition.FRONT, FacePosition.BACK],
-      [FacePosition.TOP]: [FacePosition.FRONT, FacePosition.BACK, FacePosition.LEFT, FacePosition.RIGHT],
-      [FacePosition.BOTTOM]: [FacePosition.FRONT, FacePosition.BACK, FacePosition.LEFT, FacePosition.RIGHT]
+      [FacePosition.FRONT]: [FacePosition.UP, FacePosition.DOWN, FacePosition.LEFT, FacePosition.RIGHT],
+      [FacePosition.BACK]: [FacePosition.UP, FacePosition.DOWN, FacePosition.LEFT, FacePosition.RIGHT],
+      [FacePosition.LEFT]: [FacePosition.UP, FacePosition.DOWN, FacePosition.FRONT, FacePosition.BACK],
+      [FacePosition.RIGHT]: [FacePosition.UP, FacePosition.DOWN, FacePosition.FRONT, FacePosition.BACK],
+      [FacePosition.UP]: [FacePosition.FRONT, FacePosition.BACK, FacePosition.LEFT, FacePosition.RIGHT],
+      [FacePosition.DOWN]: [FacePosition.FRONT, FacePosition.BACK, FacePosition.LEFT, FacePosition.RIGHT]
     };
 
     return adjacencyMatrix[face1]?.includes(face2) || false;
@@ -246,8 +244,8 @@ export class RotationVectorCalculator {
       [FacePosition.BACK]: 'z',
       [FacePosition.LEFT]: 'x',
       [FacePosition.RIGHT]: 'x',
-      [FacePosition.TOP]: 'y',
-      [FacePosition.BOTTOM]: 'y'
+      [FacePosition.UP]: 'y',
+      [FacePosition.DOWN]: 'y'
     };
 
     return axisMap[face1] === axisMap[face2];
@@ -264,8 +262,8 @@ export class RotationVectorCalculator {
       case FacePosition.LEFT:
       case FacePosition.RIGHT:
         return new THREE.Vector3(1, 0, 0);
-      case FacePosition.TOP:
-      case FacePosition.BOTTOM:
+      case FacePosition.UP:
+      case FacePosition.DOWN:
         return new THREE.Vector3(0, 1, 0);
       default:
         return new THREE.Vector3(0, 1, 0);
@@ -281,8 +279,8 @@ export class RotationVectorCalculator {
       case FacePosition.BACK:  return new THREE.Vector3(0, 0, -1);
       case FacePosition.LEFT:  return new THREE.Vector3(-1, 0, 0);
       case FacePosition.RIGHT: return new THREE.Vector3(1, 0, 0);
-      case FacePosition.TOP:   return new THREE.Vector3(0, 1, 0);
-      case FacePosition.BOTTOM: return new THREE.Vector3(0, -1, 0);
+      case FacePosition.UP:   return new THREE.Vector3(0, 1, 0);
+      case FacePosition.DOWN: return new THREE.Vector3(0, -1, 0);
       default: return new THREE.Vector3(0, 0, 0);
     }
   }
@@ -298,8 +296,8 @@ export class RotationVectorCalculator {
       case FacePosition.BACK:  return new THREE.Vector3(0, 0, -size);
       case FacePosition.LEFT:  return new THREE.Vector3(-size, 0, 0);
       case FacePosition.RIGHT: return new THREE.Vector3(size, 0, 0);
-      case FacePosition.TOP:   return new THREE.Vector3(0, size, 0);
-      case FacePosition.BOTTOM: return new THREE.Vector3(0, -size, 0);
+      case FacePosition.UP:   return new THREE.Vector3(0, size, 0);
+      case FacePosition.DOWN: return new THREE.Vector3(0, -size, 0);
       default: return new THREE.Vector3(0, 0, 0);
     }
   }
@@ -361,8 +359,7 @@ export class RotationVectorCalculator {
   private createRotationCommand(
     face: FacePosition,
     direction: RotationDirection,
-    angle: number,
-    confidence: number
+    angle: number
   ): RotationCommand {
     const angleRadians = THREE.MathUtils.degToRad(angle);
     const targetAngle = Math.PI / 2; // 90 degrees (quarter turn)

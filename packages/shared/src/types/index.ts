@@ -78,3 +78,20 @@ export type {
 } from './camera-controls';
 
 export { CameraError } from './camera-controls';
+
+// Face adjacency types
+export {
+  AdjacencyState,
+} from './face-adjacency';
+
+export type {
+  FaceAdjacencyRelationship,
+  FaceEdge,
+  FaceAdjacencyDetectorOptions,
+  FaceReferenceState,
+  AdjacencyDetectionResult,
+  FaceReferenceTrackerState,
+  FaceReferenceTrackerOptions,
+  FaceSelectionEvent,
+  FaceReferenceTrackerResult,
+} from './face-adjacency';
