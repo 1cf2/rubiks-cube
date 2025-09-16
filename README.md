@@ -2,7 +2,6 @@
 
 A high-performance, browser-based 3D Rubik's Cube game built with modern web technologies. Features realistic 3D rendering, intuitive mouse/touch controls, and smooth animations that deliver an authentic cube-solving experience.
 
-![Rubik's Cube Demo](docs/demo-screenshot.png)
 
 ## 🎮 Features
 
@@ -341,4 +340,4 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ for puzzle enthusiasts and 3D web technology**
 
-For more information, visit our [documentation](docs/) or check out the [live demo](link-to-demo).
+For more information, visit our [documentation](docs/) or check out the [live ](link-to-demo).
