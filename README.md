@@ -340,4 +340,4 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ for puzzle enthusiasts and 3D web technology**
 
-For more information, visit our [documentation](docs/) or check out the [live ](link-to-demo).
+For more information, visit our [documentation](docs/) or check out the [live demo](https://darby-pseudoisometric-operably.ngrok-free.app/).
