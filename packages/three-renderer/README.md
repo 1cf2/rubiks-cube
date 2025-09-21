@@ -7,10 +7,11 @@
 This package provides the core 3D rendering functionality for the Rubik's Cube game, including:
 
 - **Face Rotation Animation** - Realistic cube face rotations that behave like a physical Rubik's cube
-- **Mouse/Touch Interaction** - Intelligent gesture recognition for face selection and rotation
-- **Visual Feedback** - Face highlighting, rotation previews, and visual indicators
+- **Face-to-Face Drag Interactions** - Intuitive reference face selection and drag to adjacent faces for layer rotations, with geometric adjacency detection and vector-based direction calculation
+- **Mouse/Touch Interaction** - Advanced gesture recognition integrating face tracking, adjacency validation, and enhanced rotation previews
+- **Visual Feedback** - Dynamic highlighting (reference/adjacent), live direction arrows, pulsing animations, and ghost previews during drags
 - **Camera Management** - Smooth orbit controls for 3D cube viewing
-- **Performance Optimization** - 60fps rendering with automatic quality adjustment
+- **Performance Optimization** - 60fps rendering with face caching, throttled adjacency checks (16ms), hysteresis, and confidence-based initiation
 
 ## Key Components
 
@@ -106,6 +107,19 @@ const touchHandler = new TouchInteractionHandler({
 4. **Exact Positioning**: Uses exact coordinate matching instead of threshold-based detection
 
 **Result**: The cube now behaves exactly like a physical Rubik's cube, with faces rotating as solid units.
+
+### Enhanced: Face-to-Face Drag Interactions
+
+**New Feature**: Added intuitive face-to-face rotation system for natural, gesture-based cube solving without traditional click-and-drag limitations.
+
+**Implementation**:
+
+1. **Adjacency Detection** (`FaceAdjacencyDetector`): Geometric analysis of face centers, normals, edges; classifies states (adjacent/diagonal/non-adjacent) with normalized distances (thresholds: 1.1 adjacent, 1.6 diagonal), layer compatibility, shared edges, and confidence scoring (0-1 based on state/layers/drag)
+2. **Reference Tracking** (`FaceReferenceTracker`): Manages selection state with timeouts (3s), max drag (5 units), hysteresis (0.01) to prevent jitter; operations for select/update/clear/invalidate
+3. **Vector Calculation** (`RotationVectorCalculator`): Computes axis (cross product), direction (right-hand rule via dot/cross), torque angle (15°-165° range); generates RotationCommand with 90° target
+4. **Interaction Handling** (`FaceToFaceMouseInteractionHandler` & `EnhancedFaceToFaceMouseInteractionHandler`): Orchestrates drags with throttled checks; visual feedback (orange reference, blue adjacents); live previews (green arrows, pulsing, face-specific orientations)
+
+**Benefits**: Enables precise, physics-inspired rotations; high confidence (>0.8) initiation; performance via caching/throttling; seamless integration with existing animator/lighting.
 
 ## Performance Features
 

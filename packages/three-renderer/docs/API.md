@@ -260,6 +260,142 @@ const preview = new RotationPreview(scene);
 - Fade-out animation
 - Cleans up temporary objects
 
+## Face-to-Face Interaction System
+
+Advanced interaction system enabling intuitive face-to-face drag rotations: select one face (reference), drag to an adjacent face to trigger layer rotation. Integrates adjacency detection, reference tracking, vector calculation, and enhanced previews for precise, natural cube manipulation.
+
+### FaceAdjacencyDetector
+
+Detects spatial relationships between cube faces for valid rotations, using normalized distances, layer compatibility, and shared edge analysis.
+
+```typescript
+import { FaceAdjacencyDetector } from '@rubiks-cube/three-renderer';
+
+const detector = new FaceAdjacencyDetector({
+  adjacencyThreshold: 1.1,
+  diagonalThreshold: 1.6,
+  strictLayerValidation: true,
+  faceCenterCache: true
+});
+```
+
+#### Methods
+
+**`detectAdjacency(referenceFace: FacePosition, targetFace: FacePosition): FaceAdjacencyRelationship`**
+- Computes adjacency state (adjacent/diagonal/non-adjacent/identical), distance, shared edge, layer compatibility, and rotation validity
+- Uses cached face centers/normals/edges for performance
+- Returns relationship object with all geometric details
+
+**`detectAdjacencyWithMetrics(referenceState: FaceReferenceState, targetFace: FacePosition): AdjacencyDetectionResult`**
+- Enhanced detection with suggested rotation direction, confidence score (0-1), and processing time
+- Applies right-hand rule for direction; confidence factors adjacency, layers, drag distance
+- Threshold: >0.8 confidence enables rotation initiation
+
+**`calculateRotationDirection(referenceFace: FacePosition, targetFace: FacePosition, referenceNormal: THREE.Vector3): RotationDirection`**
+- Determines clockwise/counter-clockwise using cross/dot products or planar mapping
+- Handles parallel faces via face order heuristics
+
+### FaceReferenceTracker
+
+Manages reference face state during drags: tracks selection, position, validity timeouts, drag distance with hysteresis.
+
+```typescript
+import { FaceReferenceTracker } from '@rubiks-cube/three-renderer';
+
+const tracker = new FaceReferenceTracker({
+  validityTimeout: 3000,
+  maximumDragDistance: 5.0,
+  hysteresisThreshold: 0.01,
+  trackingEnabled: true
+});
+```
+
+#### Methods
+
+**`handleFaceSelection(event: FaceSelectionEvent): FaceReferenceTrackerResult`**
+- Initializes tracking on selection: sets face, position, normal, timestamp; enables mode
+- Returns operation ('select'), state, proceed flag
+
+**`handleDragUpdate(currentPosition: [number, number, number]): FaceReferenceTrackerResult`**
+- Updates drag distance, current point; validates max distance/hysteresis
+- Returns operation ('update'), state, proceed if valid
+
+**`clearTracking(): FaceReferenceTrackerResult`** / **`checkTimeout(): FaceReferenceTrackerResult`**
+- Clears/invalidates on release/timeout; operations ('clear'/'none')
+- Timeout: 3s inactivity clears selection
+
+**`confirmValidAdjacency(): FaceReferenceTrackerResult`** / **`invalidate(): FaceReferenceTrackerResult`**
+- Updates hasValidAdjacency flag; for adjacency confirmation/invalidation
+
+### RotationVectorCalculator
+
+Computes rotation axis, angle, direction, torque from face relationships using vector math and right-hand rule.
+
+```typescript
+import { RotationVectorCalculator } from '@rubiks-cube/three-renderer';
+
+const calculator = new RotationVectorCalculator({
+  useRightHandRule: true,
+  perpendicularTolerance: 5.0,
+  minimumTorqueAngle: 15.0,
+  maximumTorqueAngle: 165.0,
+  calculationThreshold: 0.001
+});
+```
+
+#### Methods
+
+**`calculateFaceToFaceRotation(referenceState: FaceReferenceState, relationship: FaceAdjacencyRelationship): FaceToFaceRotationResult`**
+- Validates inputs; computes axis (cross product), direction (right-hand rule), torque angle (acos(dot))
+- Checks perpendicularity, angle range (15°-165°); generates RotationCommand if valid
+- Returns canRotate, command, vector (axis/angle/torque/confidence), reason if invalid
+- Confidence: Based on angle deviation from 90°, axis magnitude
+
+### FaceToFaceMouseInteractionHandler
+
+Orchestrates face-to-face drags: selection → adjacency checks → rotation commands with throttled performance.
+
+```typescript
+import { FaceToFaceMouseInteractionHandler } from '@rubiks-cube/three-renderer';
+
+const handler = new FaceToFaceMouseInteractionHandler();
+```
+
+#### Methods
+
+**`handleFaceSelection(face: FacePosition, position: [number,number,number], normal: [number,number,number], timestamp?: number): CubeOperationResult<boolean>`**
+- Initializes tracker; enables mode; returns success/data
+
+**`handleDragUpdate(currentPosition: [number,number,number]): CubeOperationResult<{canRotate: boolean, rotationCommand: RotationCommand|null, adjacencyState: AdjacencyState, validFaces: FacePosition[]}>`**
+- Updates tracker; throttles (16ms) adjacency detection; finds valid targets
+- Generates command via calculator if adjacent/compatible; returns rotate readiness
+
+**`handleGestureComplete(): CubeOperationResult<boolean>`**
+- Clears tracker/mode; returns success
+
+**`updateFaceToFaceVisualFeedback(): VisualFeedback[]`**
+- Generates highlights: orange for reference, blue for adjacents
+
+### EnhancedFaceToFaceMouseInteractionHandler
+
+Extends base handler with live rotation previews: arrows, pulsing animations, ghost overlays during valid drags.
+
+```typescript
+import { EnhancedFaceToFaceMouseInteractionHandler } from '@rubiks-cube/three-renderer';
+
+const enhancedHandler = new EnhancedFaceToFaceMouseInteractionHandler(scene);
+```
+
+#### Methods
+
+**`updateDragWithPreview(onPreviewUpdate?: () => void): EnhancedFaceToFaceResult`**
+- Combines drag update with preview creation: arrows (green, sized by layer), orientations by direction/face
+- Pulsing scale animation; clears on invalid; integrates RotationPreviewInfo (active, face, direction, layers, arrows, ghost)
+- Calls callback on preview changes
+
+**`dispose(): void`**
+- Cleans previews, materials, geometries
+
 ## Material System
 
 ### CubeMaterial
