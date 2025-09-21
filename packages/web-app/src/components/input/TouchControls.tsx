@@ -22,11 +22,11 @@ export interface TouchControlsProps {
   isEnabled?: boolean;
   sensitivity?: number;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onFaceRotation?: (_face: FacePosition, _direction: RotationDirection, _velocity: number) => void;
+  onFaceRotation?: (face: FacePosition, direction: RotationDirection, velocity: number) => void;
   onTouchStart?: () => void;
   onTouchEnd?: () => void;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onError?: (_error: TouchError, _message: string) => void;
+  onError?: (error: TouchError, message: string) => void;
   className?: string;
   children?: React.ReactNode;
 }
@@ -84,6 +84,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
           console.log('🪲 TouchControls: Raycast result', raycastResult);
 
           if (!raycastResult.success || !raycastResult.data) {
+            console.log('🪲 TouchControls: Outside cube drag detected - no face hit, event prevented, no forward to camera');
             onError?.(TouchError.INVALID_GESTURE, 'No cube face detected under touch');
             return;
           }

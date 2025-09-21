@@ -164,9 +164,13 @@ export function useCameraControls(
 
     // Touch event handlers
     const handleTouchEvent = (event: TouchEvent) => {
+      console.log('🪲 useCameraControls: Touch event reached camera handler', { type: event.type, touchesLength: event.touches.length, targetTouchesLength: event.targetTouches.length, changedTouchesLength: event.changedTouches.length });
       const result = processor.processTouchInput(event, canvas);
       if (result.success && result.data) {
+        console.log('🪲 useCameraControls: Processed touch input to gesture', { gesture: result.data.gesture, touches: event.touches.length });
         handleCameraInput(result.data);
+      } else {
+        console.log('🪲 useCameraControls: Touch input processing failed or no gesture', { success: result.success, error: !result.success ? result.error : undefined });
       }
     };
 
@@ -192,6 +196,7 @@ export function useCameraControls(
     canvas.addEventListener('wheel', handleMouseEvent, { passive: false });
     canvas.addEventListener('contextmenu', preventContextMenu);
 
+    console.log('🪲 useCameraControls: Attaching touch listeners to canvas');
     canvas.addEventListener('touchstart', handleTouchEvent, { passive: false });
     canvas.addEventListener('touchmove', handleTouchEvent, { passive: false });
     canvas.addEventListener('touchend', handleTouchEvent, { passive: false });

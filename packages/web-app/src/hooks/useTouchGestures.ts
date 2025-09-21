@@ -17,7 +17,6 @@ import {
   createTouchInteraction,
   calculateTouchVelocity,
   isSignificantTouchMovement,
-  preventDefaultTouchBehavior,
   debounceTouch,
   isTouchDevice
 } from '../utils/touchUtils';
@@ -28,8 +27,10 @@ interface UseTouchGesturesOptions {
   gestureTimeout: number;
   minimumSwipeDistance: number;
   canvas?: HTMLCanvasElement | null;
-  onGesture?: (_gesture: TouchGesture) => void;
-  onError?: (_error: TouchError, _message: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onGesture?: (gesture: TouchGesture) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onError?: (error: TouchError, message: string) => void;
 }
 
 const DEFAULT_OPTIONS: UseTouchGesturesOptions = {
@@ -197,7 +198,8 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
       console.log('🪲 useTouchGestures: touchstart event fired', { touchesLength: event.changedTouches.length, target: event.target });
       if (!containerRef.current) return;
       
-      preventDefaultTouchBehavior(event);
+      // Don't preventDefault immediately; let it bubble for camera if no face
+      // preventDefaultTouchBehavior(event); // Comment out for outside forwarding
       clearGestureTimeout();
 
       const newTouches = new Map(mobileInputState.activeTouches);
@@ -247,7 +249,9 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
       console.log('🪲 useTouchGestures: touchmove event fired', { touchesLength: event.changedTouches.length });
       if (!containerRef.current || !mobileInputState.isGestureInProgress) return;
       
-      preventDefaultTouchBehavior(event);
+      // Conditional preventDefault: Only if gesture is face rotation (after raycast in TouchControls)
+      // For outside, allow bubbling to camera
+      // preventDefaultTouchBehavior(event); // Comment out for outside forwarding
 
       const updatedTouches = new Map(mobileInputState.activeTouches);
       
@@ -280,7 +284,8 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
   const handleTouchEnd = useCallback(
     (event: TouchEvent) => {
       console.log('🪲 useTouchGestures: touchend event fired', { changedTouchesLength: event.changedTouches.length });
-      preventDefaultTouchBehavior(event);
+      // Conditional preventDefault for end
+      // preventDefaultTouchBehavior(event); // Comment out for outside forwarding
       
       const updatedTouches = new Map(mobileInputState.activeTouches);
       

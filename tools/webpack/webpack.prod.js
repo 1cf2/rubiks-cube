@@ -4,6 +4,7 @@ const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const rootDir = path.resolve(__dirname, '../..');
 
@@ -33,6 +34,14 @@ module.exports = merge(common, {
     new MiniCssExtractPlugin({
       filename: '[name].[contenthash].css',
       chunkFilename: '[name].[contenthash].chunk.css',
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(rootDir, 'packages/web-app/src/styles/responsive.css'),
+          to: 'styles/responsive.css',
+        },
+      ],
     }),
     // Uncomment for bundle analysis
     // new BundleAnalyzerPlugin({
