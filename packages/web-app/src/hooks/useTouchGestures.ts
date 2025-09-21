@@ -27,6 +27,7 @@ interface UseTouchGesturesOptions {
   debounceDelay: number;
   gestureTimeout: number;
   minimumSwipeDistance: number;
+  canvas?: HTMLCanvasElement | null;
   onGesture?: (_gesture: TouchGesture) => void;
   onError?: (_error: TouchError, _message: string) => void;
 }
@@ -40,6 +41,7 @@ const DEFAULT_OPTIONS: UseTouchGesturesOptions = {
 
 export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
+  const canvas = opts.canvas;
   
   const [mobileInputState, setMobileInputState] = useState<MobileInputState>({
     activeTouches: new Map(),
@@ -54,6 +56,7 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
 
   // Check if this is a touch device
   const isTouchSupported = isTouchDevice();
+  console.log('🪲 useTouchGestures: isTouchSupported:', isTouchSupported);
 
   const clearGestureTimeout = useCallback(() => {
     if (gestureTimeoutRef.current) {
@@ -191,6 +194,7 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
 
   const handleTouchStart = useCallback(
     (event: TouchEvent) => {
+      console.log('🪲 useTouchGestures: touchstart event fired', { touchesLength: event.changedTouches.length, target: event.target });
       if (!containerRef.current) return;
       
       preventDefaultTouchBehavior(event);
@@ -206,6 +210,7 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
         
         if (touchResult.success) {
           newTouches.set(touch.identifier, touchResult.data);
+          console.log('🪲 useTouchGestures: Added touch', { id: touch.identifier, position: touchResult.data.startPosition });
         } else {
           opts.onError?.(touchResult.error, touchResult.message);
         }
@@ -226,6 +231,8 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
         isGestureInProgress: true,
       }));
 
+      console.log('🪲 useTouchGestures: Gesture started with', newTouches.size, 'touches');
+
       // Set gesture timeout
       gestureTimeoutRef.current = window.setTimeout(() => {
         opts.onError?.(TouchError.GESTURE_TIMEOUT, 'Gesture timed out');
@@ -237,6 +244,7 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
 
   const handleTouchMove = useCallback(
     (event: TouchEvent) => {
+      console.log('🪲 useTouchGestures: touchmove event fired', { touchesLength: event.changedTouches.length });
       if (!containerRef.current || !mobileInputState.isGestureInProgress) return;
       
       preventDefaultTouchBehavior(event);
@@ -256,6 +264,7 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
               ...existingTouch,
               currentPosition: positionResult.data.currentPosition,
             });
+            console.log('🪲 useTouchGestures: Updated touch position', { id: touch.identifier, newPos: positionResult.data.currentPosition });
           }
         }
       }
@@ -270,6 +279,7 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
 
   const handleTouchEnd = useCallback(
     (event: TouchEvent) => {
+      console.log('🪲 useTouchGestures: touchend event fired', { changedTouchesLength: event.changedTouches.length });
       preventDefaultTouchBehavior(event);
       
       const updatedTouches = new Map(mobileInputState.activeTouches);
@@ -279,6 +289,7 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
         const touch = event.changedTouches[i];
         if (!touch) continue;
         updatedTouches.delete(touch.identifier);
+        console.log('🪲 useTouchGestures: Removed touch', { id: touch.identifier });
       }
 
       // If no more touches, recognize the gesture
@@ -286,12 +297,14 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
         const gestureResult = recognizeGesture(new Map(mobileInputState.activeTouches));
         
         if (gestureResult.success) {
+          console.log('🪲 useTouchGestures: Gesture recognized:', gestureResult.data);
           handleGestureRecognized(gestureResult.data);
           setMobileInputState(prev => ({
             ...prev,
             currentGesture: gestureResult.data,
           }));
         } else {
+          console.log('🪲 useTouchGestures: Gesture recognition failed:', gestureResult.error, gestureResult.message);
           opts.onError?.(gestureResult.error, gestureResult.message);
         }
         
@@ -314,21 +327,27 @@ export function useTouchGestures(options: Partial<UseTouchGesturesOptions> = {})
 
   // Set up event listeners
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !isTouchSupported) return;
+    const element = canvas || containerRef.current;
+    if (!element || !isTouchSupported) {
+      console.log('🪲 useTouchGestures: Skipping attachment - no element or not touch supported');
+      return;
+    }
 
-    container.addEventListener('touchstart', handleTouchStart, { passive: false });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
-    container.addEventListener('touchend', handleTouchEnd, { passive: false });
-    container.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+    console.log('🪲 useTouchGestures: Attaching touch listeners to', canvas ? 'canvas' : 'container');
+
+    element.addEventListener('touchstart', handleTouchStart, { passive: false });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: false });
+    element.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('touchend', handleTouchEnd);
-      container.removeEventListener('touchcancel', handleTouchEnd);
+      console.log('🪲 useTouchGestures: Removing touch listeners');
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
+      element.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [handleTouchStart, handleTouchMove, handleTouchEnd, isTouchSupported]);
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd, isTouchSupported, canvas]);
 
   // Cleanup on unmount
   useEffect(() => {

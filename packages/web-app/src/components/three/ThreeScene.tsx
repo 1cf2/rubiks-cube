@@ -36,10 +36,12 @@ export const ThreeContext = React.createContext<{
   scene: Scene | null;
   camera: PerspectiveCamera | null;
   renderer: WebGLRenderer | null;
+  canvas: HTMLCanvasElement | null;
 }>({
   scene: null,
   camera: null,
-  renderer: null
+  renderer: null,
+  canvas: null
 });
 
 export const useThreeContext = () => {
@@ -303,6 +305,7 @@ export const ThreeSceneProvider: React.FC<{ children?: React.ReactNode; onLighti
       // Append renderer to DOM
       window.console.log('🎨 ThreeScene: Setting up canvas with pointerEvents:', renderer.domElement.style.pointerEvents);
       // Canvas should not capture pointer events - MouseControls overlay will handle all interaction
+      // For mobile touch, we'll set to 'auto' conditionally in CubeScene
       renderer.domElement.style.pointerEvents = 'none';
       window.console.log('🎨 ThreeScene: Canvas pointerEvents after setting:', renderer.domElement.style.pointerEvents);
       mountRef.current.appendChild(renderer.domElement);
@@ -441,7 +444,8 @@ export const ThreeSceneProvider: React.FC<{ children?: React.ReactNode; onLighti
     <ThreeContext.Provider value={{
       scene: sceneRef.current,
       camera: cameraRef.current,
-      renderer: rendererRef.current
+      renderer: rendererRef.current,
+      canvas: rendererRef.current ? rendererRef.current.domElement : null
     }}>
       {!isInitialized && (
         <LoadingIndicator 

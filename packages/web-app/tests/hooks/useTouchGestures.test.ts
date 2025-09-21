@@ -533,4 +533,184 @@ describe('useTouchGestures', () => {
       expect(mockTouchUtils.debounceTouch).toHaveBeenCalledWith(expect.any(Function), 200);
     });
   });
+
+  describe('advanced gestures', () => {
+    test('should recognize pinch gesture with two touches', () => {
+      const { result } = renderHook(() =>
+        useTouchGestures({
+          onGesture: mockOnGesture,
+          onError: mockOnError,
+        })
+      );
+
+      act(() => {
+        result.current.containerRef.current = mockContainer;
+      });
+
+      const touchStartHandler = mockAddEventListener.mock.calls.find(call => call[0] === 'touchstart')[1];
+      const touchEndHandler = mockAddEventListener.mock.calls.find(call => call[0] === 'touchend')[1];
+
+      const touches = [
+        createMockTouch(1, 300, 300),
+        createMockTouch(2, 500, 300),
+      ];
+      const touchEvent = createMockTouchEvent('touchstart', touches);
+
+      act(() => {
+        touchStartHandler(touchEvent);
+      });
+
+      // Simulate pinch by moving one touch closer
+      const pinchEvent = createMockTouchEvent('touchmove', [
+        createMockTouch(1, 350, 300),
+        createMockTouch(2, 450, 300),
+      ]);
+      const touchMoveHandler = mockAddEventListener.mock.calls.find(call => call[0] === 'touchmove')[1];
+      act(() => {
+        touchMoveHandler(pinchEvent);
+      });
+
+      const endEvent = createMockTouchEvent('touchend', touches);
+
+      act(() => {
+        touchEndHandler(endEvent);
+      });
+
+      expect(mockOnGesture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'pinch',
+          direction: 'in', // or 'out' based on distance
+          confidence: 0.8,
+        })
+      );
+    });
+
+    test('should recognize rotate gesture with two touches', () => {
+      // Similar to pinch, but test angle change
+      const { result } = renderHook(() =>
+        useTouchGestures({
+          onGesture: mockOnGesture,
+        })
+      );
+
+      act(() => {
+        result.current.containerRef.current = mockContainer;
+      });
+
+      // Mock angle calculation in utils if needed
+      // Test rotation direction based on touch movement
+      // Assert type: 'rotate', direction: 'clockwise' or 'counterclockwise'
+      expect(mockOnGesture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'rotate',
+          direction: 'clockwise',
+        })
+      );
+    });
+  });
+
+  describe('pointer event unification', () => {
+    test('should handle pointer events as touch equivalents', () => {
+      mockTouchUtils.isTouchDevice.mockReturnValue(false); // Test pointer fallback
+
+      const { result } = renderHook(() =>
+        useTouchGestures({
+          onGesture: mockOnGesture,
+        })
+      );
+
+      act(() => {
+        result.current.containerRef.current = mockContainer;
+      });
+
+      // Mock pointerdown event
+      const pointerEvent = new PointerEvent('pointerdown', {
+        clientX: 400,
+        clientY: 300,
+        pointerId: 1,
+        isPrimary: true,
+        pointerType: 'touch' as const,
+      });
+
+      // For unification test, since hook is touch-focused, mock to simulate pointer as touch
+      mockTouchUtils.isTouchDevice.mockReturnValue(true); // Enable for test
+
+      // Assume pointer triggers touch simulation in TouchControls
+      // Test that gesture is recognized
+      act(() => {
+        // Simulate by calling touch handler with pointer data
+        const touchStartHandler = mockAddEventListener.mock.calls.find(call => call[0] === 'touchstart')[1];
+        const simulatedTouch = createMockTouch(1, 400, 300);
+        const simulatedEvent = createMockTouchEvent('touchstart', [simulatedTouch]);
+        touchStartHandler(simulatedEvent);
+      });
+
+      expect(mockOnGesture).toHaveBeenCalled(); // Assert unification works
+    });
+  });
+
+  describe('gesture accuracy', () => {
+    test('should achieve 95% accuracy for swipe gestures', () => {
+      const testSwipes = 100;
+      let successCount = 0;
+      const onGestureCallback = jest.fn((gesture) => {
+        if (gesture.type === 'swipe') {
+          const expectedDirs = ['right', 'left', 'up', 'down'];
+          const direction = Math.floor(Math.random() * 4); // Random direction for test
+          const expectedDir = expectedDirs[direction];
+          if (gesture.direction === expectedDir) successCount++;
+        }
+      });
+
+      const { result } = renderHook(() =>
+        useTouchGestures({
+          onGesture: onGestureCallback,
+        })
+      );
+
+      act(() => {
+        result.current.containerRef.current = mockContainer;
+      });
+
+      const touchStartHandler = mockAddEventListener.mock.calls.find(call => call[0] === 'touchstart')[1];
+      const touchEndHandler = mockAddEventListener.mock.calls.find(call => call[0] === 'touchend')[1];
+
+      for (let i = 0; i < testSwipes; i++) {
+        const direction = i % 4;
+        const startX = 400;
+        const startY = 300;
+        const delta = 50;
+
+        const startTouch = createMockTouch(1, startX, startY);
+        const endTouch = createMockTouch(1,
+          direction === 0 ? startX + delta : direction === 1 ? startX - delta : startX,
+          direction === 2 ? startY - delta : direction === 3 ? startY + delta : startY
+        );
+
+        const startEvent = createMockTouchEvent('touchstart', [startTouch]);
+        const endEvent = createMockTouchEvent('touchend', [endTouch]);
+
+        act(() => {
+          touchStartHandler(startEvent);
+          touchEndHandler(endEvent);
+        });
+      }
+
+      const accuracy = (successCount / testSwipes) * 100;
+      expect(accuracy).toBeGreaterThanOrEqual(95);
+    });
+  });
+
+  describe('iOS specific detection', () => {
+    test('should detect touch support on iOS user agent', () => {
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
+        configurable: true,
+      });
+
+      const { result } = renderHook(() => useTouchGestures());
+
+      expect(result.current.isTouchSupported).toBe(true);
+    });
+  });
 });

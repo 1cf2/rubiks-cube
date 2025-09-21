@@ -18,11 +18,14 @@ import { TouchInteractionHandler } from '@rubiks-cube/three-renderer/interaction
 export interface TouchControlsProps {
   scene?: THREE.Scene;
   camera?: THREE.Camera;
+  canvas?: HTMLCanvasElement | null;
   isEnabled?: boolean;
   sensitivity?: number;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onFaceRotation?: (_face: FacePosition, _direction: RotationDirection, _velocity: number) => void;
   onTouchStart?: () => void;
   onTouchEnd?: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onError?: (_error: TouchError, _message: string) => void;
   className?: string;
   children?: React.ReactNode;
@@ -31,6 +34,7 @@ export interface TouchControlsProps {
 export const TouchControls: React.FC<TouchControlsProps> = ({
   scene,
   camera,
+  canvas,
   isEnabled = true,
   sensitivity = 1.0,
   onFaceRotation,
@@ -42,13 +46,20 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 }) => {
   const touchStartTime = useRef<number>(0);
 
+  console.log('🪲 TouchControls: Component rendered', { isEnabled, scene: !!scene, camera: !!camera });
+
   const handleGesture = useCallback(
     async (gesture: TouchGesture) => {
-      if (!scene || !camera || !isEnabled) return;
+      console.log('🪲 TouchControls: Gesture received', { type: gesture.type, direction: gesture.direction, velocity: gesture.velocity, touches: gesture.touches.length });
+      if (!scene || !camera || !isEnabled) {
+        console.log('🪲 TouchControls: Skipping gesture - missing scene/camera or disabled');
+        return;
+      }
 
       try {
         // For tap gestures, we need to detect the face during touch
         if (gesture.type === 'tap') {
+          console.log('🪲 TouchControls: Tap gesture - skipping rotation');
           // Don't process taps for rotation - they're used for selection/highlighting
           return;
         }
@@ -61,6 +72,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
             return;
           }
           
+          console.log('🪲 TouchControls: Performing raycast for swipe', { startPos: firstTouch.startPosition });
           // Perform raycasting to detect which face was touched
           const raycastResult = TouchInteractionHandler.raycastTouchOnCube({
             camera,
@@ -69,6 +81,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
             recursive: true
           });
 
+          console.log('🪲 TouchControls: Raycast result', raycastResult);
+
           if (!raycastResult.success || !raycastResult.data) {
             onError?.(TouchError.INVALID_GESTURE, 'No cube face detected under touch');
             return;
@@ -76,6 +90,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
           const intersection = raycastResult.data;
           
+          console.log('🪲 TouchControls: Face detected', { face: intersection.facePosition, point: intersection.point });
           // Validate touch target meets accessibility standards
           const canvas = document.querySelector('canvas') as HTMLCanvasElement;
           if (canvas) {
@@ -85,6 +100,7 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
               44 // WCAG AA minimum size
             );
             
+            console.log('🪲 TouchControls: Target validation', targetValidation);
             if (!targetValidation.success || !targetValidation.data) {
               if (process.env['NODE_ENV'] === 'development') {
                 window.console.log('Touch target may be too small for accessibility');
@@ -98,6 +114,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
             intersection.facePosition
           );
 
+          console.log('🪲 TouchControls: Rotation command result', rotationResult);
+
           if (!rotationResult.success) {
             onError?.(rotationResult.error, rotationResult.message);
             return;
@@ -105,11 +123,13 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
 
           const { face, direction, velocity } = rotationResult.data;
           
+          console.log('🪲 TouchControls: Executing rotation', { face, direction, velocity });
           // Execute the face rotation
           onFaceRotation?.(face, direction, velocity);
         }
 
       } catch (error) {
+        console.error('🪲 TouchControls: Gesture processing error', error);
         onError?.(
           TouchError.INVALID_GESTURE,
           error instanceof Error ? error.message : 'Unknown gesture processing error'
@@ -129,7 +149,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     [onError]
   );
 
-  const { containerRef, mobileInputState, isTouchSupported } = useTouchGestures({
+  const { mobileInputState, isTouchSupported } = useTouchGestures({
+    canvas: canvas || null, // Pass canvas directly for event attachment
     sensitivity,
     debounceDelay: 100, // Prevent rapid duplicate gestures
     gestureTimeout: 1000, // Reset incomplete gestures after 1 second
@@ -137,6 +158,8 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     onGesture: handleGesture,
     onError: handleTouchError,
   });
+
+  console.log('🪲 TouchControls: useTouchGestures result', { isTouchSupported });
 
   // Handle touch lifecycle events
   useEffect(() => {
@@ -159,21 +182,15 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   // Return the container element that will capture touch events
   return (
     <div
-      ref={containerRef as React.RefObject<HTMLDivElement>}
       className={`touch-controls ${className} ${isEnabled ? 'enabled' : 'disabled'}`}
       style={{
         width: '100%',
         height: '100%',
         position: 'relative',
-        touchAction: 'none', // Prevent default browser touch behaviors
+        pointerEvents: 'none', // Wrapper doesn't capture events, canvas does
         userSelect: 'none',
         WebkitUserSelect: 'none',
         WebkitTouchCallout: 'none',
-        cursor: mobileInputState.isGestureInProgress ? 'grabbing' : 'pointer',
-        ...(!isTouchSupported && { 
-          pointerEvents: 'none', // Disable on non-touch devices
-          opacity: 0.5 
-        }),
       }}
       data-touch-enabled={isEnabled}
       data-touch-supported={isTouchSupported}

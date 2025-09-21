@@ -22,6 +22,15 @@ export interface TouchRaycastOptions {
   recursive?: boolean;
 }
 
+export interface PointerTouchInteraction {
+  pointerId: number;
+  x: number;
+  y: number;
+  startTime: number;
+  isPrimary: boolean;
+  pointerType: 'touch' | 'mouse' | 'pen';
+}
+
 export interface TouchFaceIntersection {
   readonly facePosition: FacePosition;
   readonly point: readonly [number, number, number];
@@ -37,22 +46,35 @@ export class TouchInteractionHandler {
   private domElement: HTMLElement;
   private isActive: boolean = false;
   private currentTouches = new Map<number, { x: number; y: number; startTime: number }>();
-  private onTouchStart?: (event: TouchEvent) => void;
-  private onTouchMove?: (event: TouchEvent) => void;
-  private onTouchEnd?: (event: TouchEvent) => void;
+  private currentPointers = new Map<number, PointerTouchInteraction>();
+  private onTouchStart?: (_event: TouchEvent) => void;
+  private onTouchMove?: (_event: TouchEvent) => void;
+  private onTouchEnd?: (_event: TouchEvent) => void;
+  private onPointerDown?: (_event: PointerEvent) => void;
+  private onPointerMove?: (_event: PointerEvent) => void;
+  private onPointerUp?: (_event: PointerEvent) => void;
+  private onPointerCancel?: (_event: PointerEvent) => void;
 
   constructor(
     renderer: THREE.WebGLRenderer,
     options: {
-      onTouchStart?: (event: TouchEvent) => void;
-      onTouchMove?: (event: TouchEvent) => void;
-      onTouchEnd?: (event: TouchEvent) => void;
+      onTouchStart?: (_event: TouchEvent) => void;
+      onTouchMove?: (_event: TouchEvent) => void;
+      onTouchEnd?: (_event: TouchEvent) => void;
+      onPointerDown?: (_event: PointerEvent) => void;
+      onPointerMove?: (_event: PointerEvent) => void;
+      onPointerUp?: (_event: PointerEvent) => void;
+      onPointerCancel?: (_event: PointerEvent) => void;
     } = {}
   ) {
     this.domElement = renderer.domElement;
     this.onTouchStart = options.onTouchStart || (() => {});
     this.onTouchMove = options.onTouchMove || (() => {});
     this.onTouchEnd = options.onTouchEnd || (() => {});
+    this.onPointerDown = options.onPointerDown || (() => {});
+    this.onPointerMove = options.onPointerMove || (() => {});
+    this.onPointerUp = options.onPointerUp || (() => {});
+    this.onPointerCancel = options.onPointerCancel || (() => {});
     
     this.setupEventListeners();
   }
@@ -61,11 +83,168 @@ export class TouchInteractionHandler {
    * Set up touch event listeners with proper configuration
    */
   private setupEventListeners(): void {
-    // Use passive: false to allow preventDefault() to work
+    // Touch events
     this.domElement.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
     this.domElement.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
     this.domElement.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
     this.domElement.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false });
+
+    // Pointer events for unified input
+    this.domElement.addEventListener('pointerdown', this.handlePointerDown.bind(this), { passive: false });
+    this.domElement.addEventListener('pointermove', this.handlePointerMove.bind(this), { passive: false });
+    this.domElement.addEventListener('pointerup', this.handlePointerUp.bind(this), { passive: false });
+    this.domElement.addEventListener('pointercancel', this.handlePointerCancel.bind(this), { passive: false });
+
+    // Prevent context menu on long press
+    this.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  private normalizePointerToTouch(pointerEvent: PointerEvent): PointerTouchInteraction {
+    return {
+      pointerId: pointerEvent.pointerId,
+      x: pointerEvent.clientX,
+      y: pointerEvent.clientY,
+      startTime: pointerEvent.timeStamp,
+      isPrimary: pointerEvent.isPrimary,
+      pointerType: pointerEvent.pointerType as 'touch' | 'mouse' | 'pen',
+    };
+  }
+
+  private createSimulatedTouch(pointer: PointerTouchInteraction): Touch {
+    return {
+      identifier: pointer.pointerId,
+      target: this.domElement,
+      currentTarget: this.domElement,
+      clientX: pointer.x,
+      clientY: pointer.y,
+      screenX: pointer.x,
+      screenY: pointer.y,
+      pageX: pointer.x,
+      pageY: pointer.y,
+      radiusX: 1,
+      radiusY: 1,
+      rotationAngle: 0,
+      force: pointer.pointerType === 'touch' ? 1 : 0,
+      altitudeAngle: 0,
+      azimuthAngle: 0,
+    } as Touch;
+  }
+
+  private createTouchList(touches: Touch[]): TouchList {
+    const list = Object.create(TouchList.prototype);
+    list.length = touches.length;
+    list.item = function(index: number): Touch | null {
+      return touches[index] || null;
+    };
+    return list;
+  }
+
+  private createMockTouchEvent(type: string, touches: Touch[], changedTouches: Touch[] = []): TouchEvent {
+    const touchList = this.createTouchList(touches);
+    const changedTouchList = this.createTouchList(changedTouches);
+
+    const event = new CustomEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    Object.assign(event, {
+      target: this.domElement,
+      currentTarget: this.domElement,
+      touches: touchList,
+      targetTouches: touchList,
+      changedTouches: changedTouchList,
+      timeStamp: performance.now(),
+      defaultPrevented: false,
+      isTrusted: false,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      detail: 0,
+      view: window,
+      button: 0,
+      buttons: 0,
+      clientX: 0,
+      clientY: 0,
+      screenX: 0,
+      screenY: 0,
+      movementX: 0,
+      movementY: 0,
+      relatedTarget: null,
+      preventDefault: () => event.preventDefault(),
+      stopPropagation: () => event.stopPropagation(),
+      stopImmediatePropagation: () => event.stopImmediatePropagation(),
+    });
+
+    return event as unknown as TouchEvent;
+  }
+
+  private handlePointerDown(event: PointerEvent): void {
+    event.preventDefault();
+    this.isActive = true;
+
+    const normalized = this.normalizePointerToTouch(event);
+    this.currentPointers.set(event.pointerId, normalized);
+
+    // Simulate touch event for shared logic
+    const simulatedTouches = Array.from(this.currentPointers.values()).map(p => this.createSimulatedTouch(p));
+    const simulatedTouchEvent = this.createMockTouchEvent('touchstart', simulatedTouches);
+    this.handleTouchStart(simulatedTouchEvent);
+
+    this.onPointerDown?.(event);
+  }
+
+  private handlePointerMove(event: PointerEvent): void {
+    event.preventDefault();
+
+    if (!this.isActive) return;
+
+    const existing = this.currentPointers.get(event.pointerId);
+    if (existing) {
+      const normalized = this.normalizePointerToTouch(event);
+      this.currentPointers.set(event.pointerId, normalized);
+    }
+
+    // Simulate touch move
+    const simulatedTouches = Array.from(this.currentPointers.values()).map(p => this.createSimulatedTouch(p));
+    const simulatedTouchEvent = this.createMockTouchEvent('touchmove', simulatedTouches);
+    this.handleTouchMove(simulatedTouchEvent);
+
+    this.onPointerMove?.(event);
+  }
+
+  private handlePointerUp(event: PointerEvent): void {
+    event.preventDefault();
+
+    this.currentPointers.delete(event.pointerId);
+
+    // Simulate touch end
+    const normalized = this.normalizePointerToTouch(event);
+    const simulatedChangedTouches = [this.createSimulatedTouch(normalized)];
+    const simulatedTouchEvent = this.createMockTouchEvent('touchend', [], simulatedChangedTouches);
+    this.handleTouchEnd(simulatedTouchEvent);
+
+    if (this.currentPointers.size === 0) {
+      this.isActive = false;
+    }
+
+    this.onPointerUp?.(event);
+  }
+
+  private handlePointerCancel(event: PointerEvent): void {
+    event.preventDefault();
+
+    this.currentPointers.delete(event.pointerId);
+
+    // Simulate touch cancel
+    const normalized = this.normalizePointerToTouch(event);
+    const simulatedChangedTouches = [this.createSimulatedTouch(normalized)];
+    const simulatedTouchEvent = this.createMockTouchEvent('touchcancel', [], simulatedChangedTouches);
+    this.handleTouchEnd(simulatedTouchEvent);
+
+    this.onPointerCancel?.(event);
   }
 
   /**

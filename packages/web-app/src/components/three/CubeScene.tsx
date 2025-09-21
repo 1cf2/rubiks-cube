@@ -1,14 +1,16 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Group } from 'three';
 import { ThreeScene, useThreeContext } from './ThreeScene';
 import { CubeRenderer } from './CubeRenderer';
 import { ThreeJSErrorBoundary } from './ErrorBoundary';
 import { MouseControls } from '../input/MouseControls';
+import TouchControls from '../input/TouchControls';
 import { DebugControls } from '../debug/DebugControls';
-import { FacePosition, RotationCommand, Move, CubeError } from '@rubiks-cube/shared/types';
+import { FacePosition, RotationCommand, Move, CubeError, TouchError } from '@rubiks-cube/shared/types';
 import { RotationDirection } from '@rubiks-cube/shared/types/mouse-interactions';
 import { FaceRotationAnimator } from '@rubiks-cube/three-renderer';
 import { featureFlags } from '../../utils/featureFlags';
+import { useMobileDetector } from '../../hooks/useMobileDetector';
 
 const CubeSceneContent: React.FC = () => {
   const { scene, camera } = useThreeContext();
@@ -17,6 +19,9 @@ const CubeSceneContent: React.FC = () => {
   const animatorRef = useRef<FaceRotationAnimator | null>(null);
   const lightingRefreshRef = useRef<(() => void) | null>(null);
 
+  const { isMobile } = useMobileDetector();
+  console.log('🪲 CubeScene: isMobile detection', { isMobile });
+
   // Initialize lighting refresh function
   const initializeLightingRefresh = useCallback(() => {
     if (typeof window !== 'undefined' && (window as any).refreshCubeLighting) {
@@ -24,6 +29,24 @@ const CubeSceneContent: React.FC = () => {
       window.console.log('💡 Lighting refresh function initialized');
     }
   }, []);
+
+  // Log rendering mode based on isMobile
+  useEffect(() => {
+    if (isMobile) {
+      console.log('🪲 CubeScene: Rendering TouchControls (mobile mode)');
+    } else {
+      console.log('🪲 CubeScene: Rendering MouseControls (desktop mode)');
+    }
+  }, [isMobile]);
+
+  // Log rendering mode based on isMobile
+  useEffect(() => {
+    if (isMobile) {
+      console.log('🪲 CubeScene: Rendering TouchControls (mobile mode)');
+    } else {
+      console.log('🪲 CubeScene: Rendering MouseControls (desktop mode)');
+    }
+  }, [isMobile]);
 
   if (!scene) {
     return null;
@@ -63,10 +86,12 @@ const CubeSceneContent: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleFaceHover = (_face: FacePosition | null) => {
     // Face hover handled
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleFaceSelect = (_face: FacePosition) => {
     // Face select handled
   };
@@ -142,37 +167,88 @@ const CubeSceneContent: React.FC = () => {
   };
 
 
-  const handleError = (_error: CubeError, _message?: string) => {
-    // Error handling for cube interactions
+  // eslint-disable-next-line no-unused-vars
+  const handleError = (error: CubeError | TouchError, _message?: string) => {
+    // Error handling for cube and touch interactions
+    console.error('Interaction error:', error, _message);
   };
 
 
+  const { canvas } = useThreeContext();
+
+  // Set canvas pointerEvents for mobile
+  useEffect(() => {
+    if (isMobile && canvas) {
+      canvas.style.pointerEvents = 'auto';
+      console.log('🪲 CubeScene: Set canvas pointerEvents to auto for mobile');
+    }
+  }, [isMobile, canvas]);
+
   return (
     <>
-      <CubeRenderer 
-        scene={scene} 
-        isAnimating={false} 
+      <CubeRenderer
+        scene={scene}
+        isAnimating={false}
         onCubeGroupReady={handleCubeGroupReady}
       />
       
-      <MouseControls
-        camera={camera}
-        scene={scene}
-        cubeGroup={cubeGroup}
-        cubeStateVersion={cubeStateVersion}
-        isEnabled={true}
-        enableRotationPreview={true}
-        enableDebugOverlay={true}
-        enableCompletionFeedback={true}
-        enableInvalidMovePrevention={true}
-        allowConcurrentAnimations={false}
-        enableCameraControls={true}
-        onFaceHover={handleFaceHover}
-        onFaceSelect={handleFaceSelect}
-        onRotationStart={handleRotationStart}
-        onRotationComplete={handleRotationComplete}
-        onError={handleError}
-      />
+      {isMobile ? (
+        <TouchControls
+          scene={scene}
+          camera={camera!}
+          canvas={canvas}
+          isEnabled={true}
+          onFaceRotation={(face, direction) => {
+            const command: RotationCommand = {
+              face,
+              direction,
+              targetAngle: Math.PI / 2,
+              angle: 0,
+              isComplete: false
+            };
+            handleRotationStart(command);
+          }}
+          onError={(error, message) => handleError(error as any, message)}
+        >
+          <MouseControls
+            camera={camera!}
+            scene={scene}
+            cubeGroup={cubeGroup}
+            cubeStateVersion={cubeStateVersion}
+            isEnabled={true}
+            enableRotationPreview={true}
+            enableDebugOverlay={true}
+            enableCompletionFeedback={true}
+            enableInvalidMovePrevention={true}
+            allowConcurrentAnimations={false}
+            enableCameraControls={true}
+            onFaceHover={handleFaceHover}
+            onFaceSelect={handleFaceSelect}
+            onRotationStart={handleRotationStart}
+            onRotationComplete={handleRotationComplete}
+            onError={handleError}
+          />
+        </TouchControls>
+      ) : (
+        <MouseControls
+          camera={camera!}
+          scene={scene}
+          cubeGroup={cubeGroup}
+          cubeStateVersion={cubeStateVersion}
+          isEnabled={true}
+          enableRotationPreview={true}
+          enableDebugOverlay={true}
+          enableCompletionFeedback={true}
+          enableInvalidMovePrevention={true}
+          allowConcurrentAnimations={false}
+          enableCameraControls={true}
+          onFaceHover={handleFaceHover}
+          onFaceSelect={handleFaceSelect}
+          onRotationStart={handleRotationStart}
+          onRotationComplete={handleRotationComplete}
+          onError={handleError}
+        />
+      )}
       
       {/* Debug controls - shown in development or when debug flag is enabled */}
       <DebugControls
