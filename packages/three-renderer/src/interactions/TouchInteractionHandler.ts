@@ -47,24 +47,24 @@ export class TouchInteractionHandler {
   private isActive: boolean = false;
   private currentTouches = new Map<number, { x: number; y: number; startTime: number }>();
   private currentPointers = new Map<number, PointerTouchInteraction>();
-  private onTouchStart?: (_event: TouchEvent) => void;
-  private onTouchMove?: (_event: TouchEvent) => void;
-  private onTouchEnd?: (_event: TouchEvent) => void;
-  private onPointerDown?: (_event: PointerEvent) => void;
-  private onPointerMove?: (_event: PointerEvent) => void;
-  private onPointerUp?: (_event: PointerEvent) => void;
-  private onPointerCancel?: (_event: PointerEvent) => void;
+  private onTouchStart?: (event: TouchEvent) => void;
+  private onTouchMove?: (event: TouchEvent) => void;
+  private onTouchEnd?: (event: TouchEvent) => void;
+  private onPointerDown?: (event: PointerEvent) => void;
+  private onPointerMove?: (event: PointerEvent) => void;
+  private onPointerUp?: (event: PointerEvent) => void;
+  private onPointerCancel?: (event: PointerEvent) => void;
 
   constructor(
     renderer: THREE.WebGLRenderer,
     options: {
-      onTouchStart?: (_event: TouchEvent) => void;
-      onTouchMove?: (_event: TouchEvent) => void;
-      onTouchEnd?: (_event: TouchEvent) => void;
-      onPointerDown?: (_event: PointerEvent) => void;
-      onPointerMove?: (_event: PointerEvent) => void;
-      onPointerUp?: (_event: PointerEvent) => void;
-      onPointerCancel?: (_event: PointerEvent) => void;
+      onTouchStart?: (event: TouchEvent) => void;
+      onTouchMove?: (event: TouchEvent) => void;
+      onTouchEnd?: (event: TouchEvent) => void;
+      onPointerDown?: (event: PointerEvent) => void;
+      onPointerMove?: (event: PointerEvent) => void;
+      onPointerUp?: (event: PointerEvent) => void;
+      onPointerCancel?: (event: PointerEvent) => void;
     } = {}
   ) {
     this.domElement = renderer.domElement;
@@ -352,6 +352,20 @@ export class TouchInteractionHandler {
         };
       }
 
+      // Normalize touch position to NDC for iOS DPI
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const normalizedX = ((touchPosition.x - rect.left) / rect.width * 2 - 1) * dpr;
+        const normalizedY = -((touchPosition.y - rect.top) / rect.height * 2 - 1) * dpr;
+        this.touchVector.set(normalizedX, normalizedY);
+        console.log('🪲 TouchInteractionHandler: Normalized touch for raycast', { raw: touchPosition, normalized: { x: normalizedX, y: normalizedY }, rect, dpr });
+      } else {
+        this.touchVector.set(touchPosition.x, touchPosition.y);
+        console.log('🪲 TouchInteractionHandler: No canvas found, using raw touch position', touchPosition);
+      }
+
       // Convert touch position to normalized device coordinates
       this.touchVector.set(touchPosition.x, touchPosition.y);
       
@@ -360,6 +374,7 @@ export class TouchInteractionHandler {
 
       // Find intersections with cube meshes
       const intersects = this.raycaster.intersectObjects(scene.children, recursive);
+      console.log('🪲 TouchInteractionHandler: Raycast intersects', { count: intersects.length, touchVector: this.touchVector });
 
       // Filter for cube face meshes only
       const cubeIntersects = intersects.filter(intersect => {
@@ -368,6 +383,7 @@ export class TouchInteractionHandler {
       });
 
       if (cubeIntersects.length === 0) {
+        console.log('🪲 TouchInteractionHandler: No cube face intersections found');
         return { success: true, data: null };
       }
 
